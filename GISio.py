@@ -1,6 +1,8 @@
 import numpy as np
+import osr, gdal
 import fiona
 from shapely.geometry import Point, shape, asLineString, mapping
+from shapely.wkt import loads
 import pandas as pd
 import shutil
 
@@ -96,7 +98,7 @@ def df2shp(df, shpname, geo_column, prj):
     properties = shp_properties(df)
     del properties[geo_column]
 
-    Type = df.iloc[1]['geometry'].type
+    Type = df.iloc[0][geo_column].type
     schema = {'geometry': Type, 'properties': properties}
     length = len(df)
     knt = 0
@@ -149,3 +151,60 @@ def linestring_shpfromdf(df, shpname, IDname, Xname, Yname, Zname, prj, aggregat
             output.write({'properties': props,
                           'geometry': mapping(linestring)})
     shutil.copyfile(prj, "{}.prj".format(shpname[:-4]))
+    
+def read_raster(rasterfile):
+    '''
+    reads a GDAL raster into numpy array for plotting
+    also returns meshgrid of x and y coordinates of each cell for plotting
+    based on code stolen from:
+    http://stackoverflow.com/questions/20488765/plot-gdal-raster-using-matplotlib-basemap 
+    '''
+    try:
+        ds = gdal.Open(rasterfile)
+    except:
+        raise IOError("problem reading raster file {}".format(rasterfile))
+
+    print '\nreading in {} into numpy array...'.format(rasterfile)
+    data = ds.ReadAsArray()
+    gt = ds.GetGeoTransform()
+    proj = ds.GetProjection()
+    
+    xres = gt[1]
+    yres = gt[5]
+    
+    # get the edge coordinates and add half the resolution 
+    # to go to center coordinates
+    xmin = gt[0] + xres * 0.5
+    xmax = gt[0] + (xres * ds.RasterXSize) - xres * 0.5
+    ymin = gt[3] + (yres * ds.RasterYSize) + yres * 0.5
+    ymax = gt[3] + yres * 0.5
+    
+    del ds
+
+    print 'creating a grid of xy coordinates in the original projection...'
+    xy = np.mgrid[xmin:xmax+xres:xres, ymax+yres:ymin:yres]
+    
+    # create a mask for no-data values
+    data[data<-1.0e+20] = 0
+    
+    return data, gt, proj, xy
+    
+def flatten_3Dshp(shp, outshape=None):
+	
+	if not outshape:
+	    outshape = '{}_2D.shp'.format(shp[:-4])	
+	
+	df = shp2df(shp, geometry=True)
+	
+	# somehow this removes 3D formatting
+	df['2D'] = df['geometry'].map(lambda x: loads(x.wkt))
+	
+	# drop the original geometry column
+	df = df.drop('geometry',1)
+	
+	# poop it back out
+	df2shp(df, outshape, '2D', shp[:-4]+'.prj')
+	
+
+	
+	
