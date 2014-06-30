@@ -40,11 +40,13 @@ def shp_properties(df):
         i += 1
         if dtype == np.dtype('float64'):
             continue
-            #df[df.columns[i]] = df[df.columns[i]].astype('float32')
+        # need to convert integers to 16-bit for shapefile format
+        #elif dtype == np.dtype('int64') or dtype == np.dtype('int32'):
         elif dtype == np.dtype('int64'):
             df[df.columns[i]] = df[df.columns[i]].astype('int32')
     # strip dtypes just down to 'float' or 'int'
     dtypes = [''.join([c for c in d.name if not c.isdigit()]) for d in list(df.dtypes)]
+    #dtypes = [d.name for d in list(df.dtypes)]
     # also exchange any 'object' dtype for 'str'
     dtypes = [d.replace('object', 'str') for d in dtypes]
     properties = dict(zip(df.columns, dtypes))
@@ -105,7 +107,20 @@ def df2shp(df, shpname, geo_column, prj):
     with fiona.collection(shpname, "w", "ESRI Shapefile", schema) as output:
         for i in range(len(df)):
             geo = df.iloc[i][geo_column]
-            props = dict(zip(df.columns, df.iloc[i]))
+
+            # convert numpy ints to python ints (tedious!)
+            values = []
+            for value in df.iloc[i]:
+                try:
+                    if 'int' in value.dtype.name:
+                        values.append(int(value))
+                    else:
+                        values.append(value)
+                except AttributeError: # if field is 'NoneType'
+                    values.append('')
+
+            props = dict(zip(df.columns, values))
+            #props = dict(zip(df.columns, df.iloc[i]))
             del props[geo_column]
             output.write({'properties': props,
                           'geometry': mapping(geo)})
@@ -200,7 +215,7 @@ def flatten_3Dshp(shp, outshape=None):
 	df['2D'] = df['geometry'].map(lambda x: loads(x.wkt))
 	
 	# drop the original geometry column
-	df = df.drop('geometry',1)
+	df = df.drop('geometry', axis=1)
 	
 	# poop it back out
 	df2shp(df, outshape, '2D', shp[:-4]+'.prj')
