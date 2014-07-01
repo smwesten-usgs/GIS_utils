@@ -100,6 +100,14 @@ def df2shp(df, shpname, geo_column, prj):
     '''
     like above, but requires a column of shapely geometry information
     '''
+    # enforce character limit for names! (otherwise fiona marks it zero)
+    # somewhat kludgey, but should work for duplicates up to 99
+    overtheline = [(i, '{}{}'.format(c[:8],i)) for i, c in enumerate(df.columns) if len(c)>10]
+    newcolumns = list(df.columns)
+    for i, c in overtheline:
+        newcolumns[i] = c
+    df.columns = newcolumns
+    
     print 'writing {}...'.format(shpname)
     properties = shp_properties(df)
     del properties[geo_column]
