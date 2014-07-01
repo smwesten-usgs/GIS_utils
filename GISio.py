@@ -6,7 +6,7 @@ from shapely.wkt import loads
 import pandas as pd
 import shutil
 
-def shp2df(shp, geometry=False):
+def shp2df(shp, index=None, geometry=False):
     '''
     Read shapefile into Pandas dataframe
     shp = shapefile name
@@ -29,6 +29,10 @@ def shp2df(shp, geometry=False):
     # convert to pandas dataframe, join in centroids, sort by FID
     shp_df = pd.DataFrame.from_dict(attributes_dict, orient='index')
 
+    if index:
+        index = [c for c in shp_df.columns if c.lower() == index.lower()][0]
+        shp_df.index = shp_df[index]
+    
     return shp_df
 
 
@@ -99,29 +103,35 @@ def df2shp(df, shpname, geo_column, prj):
     print 'writing {}...'.format(shpname)
     properties = shp_properties(df)
     del properties[geo_column]
+    
+    # sort the dataframe columns (so that properties coincide)
+    df = df.sort(axis=1)
 
     Type = df.iloc[0][geo_column].type
     schema = {'geometry': Type, 'properties': properties}
     length = len(df)
     knt = 0
+    dtypes= [d.name for d in df.dtypes]
     with fiona.collection(shpname, "w", "ESRI Shapefile", schema) as output:
         for i in range(len(df)):
             geo = df.iloc[i][geo_column]
 
             # convert numpy ints to python ints (tedious!)
             values = []
-            for value in df.iloc[i]:
+            for d in range(len(dtypes)):
+                value = df.iloc[i][d]
                 try:
-                    if 'int' in value.dtype.name:
+                    if 'int' in dtypes[d]:
                         values.append(int(value))
                     else:
                         values.append(value)
                 except AttributeError: # if field is 'NoneType'
                     values.append('')
-
+            
+            # column names should correspond to values, zip them up
             props = dict(zip(df.columns, values))
-            #props = dict(zip(df.columns, df.iloc[i]))
             del props[geo_column]
+            
             output.write({'properties': props,
                           'geometry': mapping(geo)})
             knt +=1
