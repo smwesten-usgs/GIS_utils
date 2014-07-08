@@ -132,7 +132,8 @@ def df2shp(df, shpname, geo_column, prj):
                 value = df.iloc[i][c]
                 col = df.columns[c]
                 #print i,c,col,value
-                dtype = df.iloc[c].dtype.name
+                dtype = df[col].dtype.name
+                #dtype = df.iloc[c].dtype.name
                 if col == geo_column:
                     continue
                 else:
