@@ -11,7 +11,7 @@ def shp2df(shp, index=None, geometry=False):
     Read shapefile into Pandas dataframe
     shp = shapefile name
     '''
-    print "loading attributes from {} into pandas dataframe...".format(shp)
+    print "loading {} into pandas dataframe...".format(shp)
     shp_obj = fiona.open(shp, 'r')
 
     attributes_dict = {}
@@ -48,6 +48,8 @@ def shp_properties(df):
         #elif dtype == np.dtype('int64') or dtype == np.dtype('int32'):
         elif dtype == np.dtype('int64'):
             df[df.columns[i]] = df[df.columns[i]].astype('int32')
+        elif dtype == np.dtype('bool'):
+            df[df.columns[i]] = df[df.columns[i]].astype('str')
     # strip dtypes just down to 'float' or 'int'
     dtypes = [''.join([c for c in d.name if not c.isdigit()]) for d in list(df.dtypes)]
     #dtypes = [d.name for d in list(df.dtypes)]
@@ -117,28 +119,30 @@ def df2shp(df, shpname, geo_column, prj):
 
     Type = df.iloc[0][geo_column].type
     schema = {'geometry': Type, 'properties': properties}
-    length = len(df)
     knt = 0
-    dtypes= [d.name for d in df.dtypes]
+    length = len(df)
+    
     with fiona.collection(shpname, "w", "ESRI Shapefile", schema) as output:
-        for i in range(len(df)):
+        for i in range(length):
             geo = df.iloc[i][geo_column]
 
             # convert numpy ints to python ints (tedious!)
-            values = []
-            for d in range(len(dtypes)):
-                value = df.iloc[i][d]
-                try:
-                    if 'int' in dtypes[d]:
-                        values.append(int(value))
-                    else:
-                        values.append(value)
-                except AttributeError: # if field is 'NoneType'
-                    values.append('')
-            
-            # column names should correspond to values, zip them up
-            props = dict(zip(df.columns, values))
-            del props[geo_column]
+            props = {}
+            for c in range(len(df.columns)):
+                value = df.iloc[i][c]
+                col = df.columns[c]
+                #print i,c,col,value
+                dtype = df.iloc[c].dtype.name
+                if col == geo_column:
+                    continue
+                else:
+                    try:
+                        if 'int' in dtype:
+                            props[col] = int(value)
+                        else:
+                            props[col] = value
+                    except AttributeError: # if field is 'NoneType'
+                        props[col] = ''
             
             output.write({'properties': props,
                           'geometry': mapping(geo)})
@@ -184,6 +188,7 @@ def linestring_shpfromdf(df, shpname, IDname, Xname, Yname, Zname, prj, aggregat
             output.write({'properties': props,
                           'geometry': mapping(linestring)})
     shutil.copyfile(prj, "{}.prj".format(shpname[:-4]))
+    
     
 def read_raster(rasterfile):
     '''
