@@ -1,3 +1,7 @@
+# suppress annoying pandas openpyxl warning
+import warnings
+warnings.filterwarnings('ignore', category=UserWarning)
+
 import numpy as np
 import fiona
 from shapely.geometry import Point, shape, asLineString, mapping
@@ -53,7 +57,7 @@ def join_csv2shp(shapefile, shp_joinfield, csvfile, csv_joinfield, out_shapefile
     csvdf = pd.read_csv(csvfile, index_col=csv_joinfield)
 
     print 'joining to {}...'.format(csvfile)
-    joined = shpdf.join(csvdf, on='node', how='inner', lsuffix='L', rsuffix='R')
+    joined = shpdf.join(csvdf, how='inner', lsuffix='L', rsuffix='R')
 
     # write to shapefile
     GISio.df2shp(joined, out_shapefile, 'geometry', shapefile[:-4]+'.prj')

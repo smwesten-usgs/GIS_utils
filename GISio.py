@@ -1,3 +1,7 @@
+# suppress annoying pandas openpyxl warning
+import warnings
+warnings.filterwarnings('ignore', category=UserWarning)
+
 import numpy as np
 import osr, gdal
 import fiona
@@ -11,7 +15,7 @@ def shp2df(shp, index=None, geometry=False):
     Read shapefile into Pandas dataframe
     shp = shapefile name
     '''
-    print "loading {} into pandas dataframe...".format(shp)
+    print "\nreading {}...".format(shp)
     shp_obj = fiona.open(shp, 'r')
 
     attributes_dict = {}
@@ -25,8 +29,8 @@ def shp2df(shp, index=None, geometry=False):
         attributes_dict[line['id']] = props
         knt += 1
         print '\r{:d}%'.format(100*knt/length),
-    print '\n'
-    # convert to pandas dataframe, join in centroids, sort by FID
+
+    print '--> building dataframe...'
     shp_df = pd.DataFrame.from_dict(attributes_dict, orient='index')
 
     if index:
