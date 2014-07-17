@@ -10,6 +10,20 @@ from shapely.wkt import loads
 import pandas as pd
 import shutil
 
+def getPRJwkt(epsg):
+   """
+   from: https://code.google.com/p/pyshp/wiki/CreatePRJfiles
+
+   Grab an WKT version of an EPSG code
+   usage getPRJwkt(4326)
+
+   This makes use of links like http://spatialreference.org/ref/epsg/4326/prettywkt/
+   """
+   import urllib
+   f=urllib.urlopen("http://spatialreference.org/ref/epsg/{0}/prettywkt/".format(epsg))
+   return (f.read())
+
+
 def shp2df(shp, index=None, geometry=False):
     '''
     Read shapefile into Pandas dataframe
@@ -50,6 +64,8 @@ def shp_properties(df):
             continue
         # need to convert integers to 16-bit for shapefile format
         #elif dtype == np.dtype('int64') or dtype == np.dtype('int32'):
+        elif 'float' in dtype.name:
+            df[df.columns[i]] = df[df.columns[i]].astype('float64')
         elif dtype == np.dtype('int64'):
             df[df.columns[i]] = df[df.columns[i]].astype('int32')
         elif dtype == np.dtype('bool'):
@@ -102,7 +118,7 @@ def shpfromdf(df, shpname, Xname, Yname, prj):
     shutil.copyfile(prj, "{}.prj".format(shpname[:-4]))
 
 
-def df2shp(df, shpname, geo_column, prj):
+def df2shp(df, shpname, geo_column, prj=None):
     '''
     like above, but requires a column of shapely geometry information
     '''
@@ -125,7 +141,7 @@ def df2shp(df, shpname, geo_column, prj):
     schema = {'geometry': Type, 'properties': properties}
     knt = 0
     length = len(df)
-    
+    problem_cols = []
     with fiona.collection(shpname, "w", "ESRI Shapefile", schema) as output:
         for i in range(length):
             geo = df.iloc[i][geo_column]
@@ -144,16 +160,38 @@ def df2shp(df, shpname, geo_column, prj):
                     try:
                         if 'int' in dtype:
                             props[col] = int(value)
+                        #if 'float' in dtype:
+                            #props[col] = np.float64(value)
+                        if schema['properties'][col] == 'str' and dtype == 'object':
+                            props[col] = str(value)
                         else:
                             props[col] = value
                     except AttributeError: # if field is 'NoneType'
+                        problem_cols.append(col)
                         props[col] = ''
             
             output.write({'properties': props,
                           'geometry': mapping(geo)})
             knt +=1
             print '\r{:d}%'.format(100*knt/length),
-    shutil.copyfile(prj, "{}.prj".format(shpname[:-4]))
+    if prj:
+        if 'epsg' in prj.lower():
+            epsg = int(prj.split(':')[1])
+            prjstr = getPRJwkt(epsg).replace('\n', '') # get rid of any EOL
+            ofp = open("{}.prj".format(shpname[:-4]), 'w')
+            ofp.write(prjstr)
+            ofp.close()
+        else:
+            try:
+                shutil.copyfile(prj, "{}.prj".format(shpname[:-4]))
+            except IOError:
+                print 'Warning: could not find specified prj file. shp will not be projected.'
+
+    if len(problem_cols) > 0:
+        print 'Warning: Had problems writing these DataFrame columns: {}'.format(problem_cols)
+        print 'Check their dtypes.'
+
+
 
 
 def linestring_shpfromdf(df, shpname, IDname, Xname, Yname, Zname, prj, aggregate=None):
