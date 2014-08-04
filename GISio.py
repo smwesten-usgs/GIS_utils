@@ -44,11 +44,14 @@ def shp2df(shp, index=None, geometry=False):
         knt += 1
         print '\r{:d}%'.format(100*knt/length),
 
-    print '--> building dataframe...'
+    print '--> building dataframe... (may take a while for large shapefiles)'
     shp_df = pd.DataFrame.from_dict(attributes_dict, orient='index')
 
     if index:
-        index = [c for c in shp_df.columns if c.lower() == index.lower()][0]
+        try:
+            index = [c for c in shp_df.columns if c.lower() == index.lower()][0]
+        except IndexError:
+            print "Index column not found."
         shp_df.index = shp_df[index]
     
     return shp_df
@@ -117,14 +120,25 @@ def shpfromdf(df, shpname, Xname, Yname, prj):
                           'geometry': mapping(point)})
     shutil.copyfile(prj, "{}.prj".format(shpname[:-4]))
 
+def csv2points(csv, X, Y, shpname, prj=None):
+    '''
+    convert csv with point information to shapefile
+    '''
+    df = pd.read_csv(csv)
+    df['geometry'] = [Point(p) for p in zip(df[X], df[Y])]
+    df2shp(df, shpname, geo_column='geometry', prj=prj)
 
-def df2shp(df, shpname, geo_column, prj=None):
+
+
+def df2shp(df, shpname, geo_column='geometry', prj=None):
     '''
     like above, but requires a column of shapely geometry information
     '''
     # enforce character limit for names! (otherwise fiona marks it zero)
     # somewhat kludgey, but should work for duplicates up to 99
-    overtheline = [(i, '{}{}'.format(c[:8],i)) for i, c in enumerate(df.columns) if len(c)>10]
+    df.columns = map(str, df.columns) # convert columns to strings in case some are ints
+    overtheline = [(i, '{}{}'.format(c[:8],i)) for i, c in enumerate(df.columns) if len(c) > 10]
+
     newcolumns = list(df.columns)
     for i, c in overtheline:
         newcolumns[i] = c
