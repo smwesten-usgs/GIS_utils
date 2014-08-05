@@ -124,10 +124,21 @@ def csv2points(csv, X, Y, shpname, prj=None):
     '''
     convert csv with point information to shapefile
     '''
+    if not shpname:
+        shpname = csv[:-4] + '.shp'
     df = pd.read_csv(csv)
     df['geometry'] = [Point(p) for p in zip(df[X], df[Y])]
     df2shp(df, shpname, geo_column='geometry', prj=prj)
 
+def xlsx2points(xlsx, sheetname, X, Y, shpname=None, prj=None):
+    '''
+    convert Excel file with point information to shapefile
+    '''
+    if not shpname:
+        shpname = xlsx.split('.')[0] + '.shp'
+    df = pd.read_excel(xlsx, sheetname)
+    df['geometry'] = [Point(p) for p in zip(df[X], df[Y])]
+    df2shp(df, shpname, geo_column='geometry', prj=prj)
 
 
 def df2shp(df, shpname, geo_column='geometry', prj=None):
