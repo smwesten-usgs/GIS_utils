@@ -24,38 +24,47 @@ def getPRJwkt(epsg):
    return (f.read())
 
 
-def shp2df(shp, index=None, geometry=False):
+def shp2df(shplist, index=None, geometry=False):
     '''
     Read shapefile into Pandas dataframe
-    shp = shapefile name
+    ``shplist`` = (string or list) of shapefile name(s)
+    ``index`` = (string) column to use as index for dataframe
+    ``geometry`` = (True/False) whether or not to read geometric information 
+    from shapefile into dataframe column "geometry"
     '''
-    print "\nreading {}...".format(shp)
-    shp_obj = fiona.open(shp, 'r')
-
-    attributes_dict = {}
-    knt = 0
-    length = len(shp_obj)
-    for line in shp_obj:
-        props = line['properties']
-        if geometry:
-            geometry = shape(line['geometry'])
-            props['geometry'] = geometry
-        attributes_dict[line['id']] = props
-        knt += 1
-        print '\r{:d}%'.format(100*knt/length),
-
-    print '--> building dataframe... (may take a while for large shapefiles)'
-    shp_df = pd.DataFrame.from_dict(attributes_dict, orient='index')
-
-    if index:
-        try:
-            index = [c for c in shp_df.columns if c.lower() == index.lower()][0]
-        except IndexError:
-            print "Index column not found."
-        shp_df.index = shp_df[index]
+    if isinstance(shplist, str):
+        shplist = [shplist]
     
-    return shp_df
+    df = pd.DataFrame()
+    for shp in shplist:
+        print "\nreading {}...".format(shp)
+        shp_obj = fiona.open(shp, 'r')
 
+        attributes_dict = {}
+        knt = 0
+        length = len(shp_obj)
+        for line in shp_obj:
+            props = line['properties']
+            if geometry:
+                geometry = shape(line['geometry'])
+                props['geometry'] = geometry
+            attributes_dict[line['id']] = props
+            knt += 1
+            print '\r{:d}%'.format(100*knt/length),
+
+        print '--> building dataframe... (may take a while for large shapefiles)'
+        shp_df = pd.DataFrame.from_dict(attributes_dict, orient='index')
+
+        if index:
+            try:
+                index = [c for c in shp_df.columns if c.lower() == index.lower()][0]
+            except IndexError:
+                print "Index column not found."
+            shp_df.index = shp_df[index]
+        df = df.append(shp_df)
+        
+    return df
+    
 
 def shp_properties(df):
     # convert dtypes in dataframe to 32 bit

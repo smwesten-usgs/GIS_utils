@@ -5,10 +5,34 @@ warnings.filterwarnings('ignore', category=UserWarning)
 import numpy as np
 import fiona
 from shapely.geometry import Point, shape, asLineString, mapping
-from shapely.ops import cascaded_union
+from shapely.ops import cascaded_union, transform
+from functools import partial
+import pyproj
 import pandas as pd
 import shutil
 import GISio
+
+def projectdf(df, projection1, projection2):
+    '''
+    ``df``: (dataframe) containing "geometry" column of shapely geometries
+    ``projection1``: (string) Proj4 string specifying source projection
+    ``projection2``: (string) Proj4 string specifying destination projection
+    '''
+    
+    # define projections
+    pr1 = pyproj.Proj(projection1)
+    pr2 = pyproj.Proj(projection2)
+    
+    # projection function
+    # (see http://toblerity.org/shapely/shapely.html#module-shapely.ops)
+    project = partial(pyproj.transform, pr1, pr2)
+
+    # do the transformation!
+    newgeo = [transform(project, g) for g in df.geometry]
+
+    return newgeo
+    
+    
 
 def dissolve(inshp, outshp, dissolve_attribute):
     df = GISio.shp2df(shp, geometry=True)
