@@ -3,7 +3,7 @@ import warnings
 warnings.filterwarnings('ignore', category=UserWarning)
 
 import numpy as np
-import osr, gdal
+import gdal
 import fiona
 from shapely.geometry import Point, shape, asLineString, mapping
 from shapely.wkt import loads
