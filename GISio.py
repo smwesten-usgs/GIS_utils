@@ -120,7 +120,7 @@ def shpfromdf(df, shpname, Xname, Yname, prj):
                           'geometry': mapping(point)})
     shutil.copyfile(prj, "{}.prj".format(shpname[:-4]))
 
-def csv2points(csv, X, Y, shpname, prj=None):
+def csv2points(csv, X='POINT_X', Y='POINT_Y', shpname=None, prj='EPSG:4326'):
     '''
     convert csv with point information to shapefile
     '''
@@ -130,7 +130,7 @@ def csv2points(csv, X, Y, shpname, prj=None):
     df['geometry'] = [Point(p) for p in zip(df[X], df[Y])]
     df2shp(df, shpname, geo_column='geometry', prj=prj)
 
-def xlsx2points(xlsx, sheetname='Sheet1', X='POINT_X', Y='POINT_Y', shpname=None, prj=None):
+def xlsx2points(xlsx, sheetname='Sheet1', X='X', Y='Y', shpname=None, prj='EPSG:4326'):
     '''
     convert Excel file with point information to shapefile
     '''
