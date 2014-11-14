@@ -3,7 +3,7 @@ import warnings
 warnings.filterwarnings('ignore', category=UserWarning)
 
 import numpy as np
-import osr, gdal
+import gdal
 import fiona
 from shapely.geometry import Point, shape, asLineString, mapping
 from shapely.wkt import loads
@@ -130,7 +130,7 @@ def csv2points(csv, X, Y, shpname, prj=None):
     df['geometry'] = [Point(p) for p in zip(df[X], df[Y])]
     df2shp(df, shpname, geo_column='geometry', prj=prj)
 
-def xlsx2points(xlsx, sheetname, X, Y, shpname=None, prj=None):
+def xlsx2points(xlsx, sheetname='Sheet1', X='POINT_X', Y='POINT_Y', shpname=None, prj=None):
     '''
     convert Excel file with point information to shapefile
     '''
