@@ -14,7 +14,7 @@ def getPRJwkt(epsg):
    """
    from: https://code.google.com/p/pyshp/wiki/CreatePRJfiles
 
-   Grab an WKT version of an EPSG code
+   Grabs a WKT version of an EPSG code
    usage getPRJwkt(4326)
 
    This makes use of links like http://spatialreference.org/ref/epsg/4326/prettywkt/
@@ -24,12 +24,15 @@ def getPRJwkt(epsg):
    return (f.read())
 
 
-def shp2df(shplist, index=None, geometry=False, true_values=None, false_values=None):
+def shp2df(shplist, index=None, geometry=False, clipto=pd.DataFrame(), true_values=None, false_values=None):
     '''
     Read shapefile into Pandas dataframe
     ``shplist`` = (string or list) of shapefile name(s)
     ``index`` = (string) column to use as index for dataframe
-    ``geometry`` = (True/False) whether or not to read geometric information 
+    ``geometry`` = (True/False) whether or not to read geometric information
+    ``clipto`` = (dataframe) limit what is brought in to items in index of clipto (requires index)
+    ``true_values`` = (list) same as argument for pandas read_csv
+    ``false_values`` = (list) same as argument for pandas read_csv
     from shapefile into dataframe column "geometry"
     '''
     if isinstance(shplist, str):
@@ -40,28 +43,53 @@ def shp2df(shplist, index=None, geometry=False, true_values=None, false_values=N
         print "\nreading {}...".format(shp)
         shp_obj = fiona.open(shp, 'r')
 
+        if index:
+            try:
+                index = [c for c in shp_obj.schema['properties'].iterkeys() if index.lower() == c.lower()][0]
+            except IndexError:
+                print "Index column not found."
+
+        if len(clipto) > 0 and index:
+            clipto_index = clipto.index
+
         attributes_dict = {}
         knt = 0
         length = len(shp_obj)
         for line in shp_obj:
             props = line['properties']
+            knt += 1
+
+            # limit what is brought in to items in index of clipto
+            if len(clipto) > 0 and index:
+                if not props[index] in clipto_index:
+                    continue
+
             if geometry:
                 geometry = shape(line['geometry'])
                 props['geometry'] = geometry
             attributes_dict[line['id']] = props
-            knt += 1
             print '\r{:d}%'.format(100*knt/length),
 
+        print '\r{:d}%'.format(100*knt/length),
         print '--> building dataframe... (may take a while for large shapefiles)'
         shp_df = pd.DataFrame.from_dict(attributes_dict, orient='index')
 
         if index:
-            try:
-                index = [c for c in shp_df.columns if c.lower() == index.lower()][0]
-            except IndexError:
-                print "Index column not found."
             shp_df.index = shp_df[index]
         df = df.append(shp_df)
+
+        # convert any t/f columns to numpy boolean data
+        if true_values or false_values:
+            replace_boolean = {}
+            for t in true_values:
+                replace_boolean[t] = True
+            for f in false_values:
+                replace_boolean[f] = False
+
+            # only remap columns that have values to be replaced
+            for c in df.columns:
+                if len(set(df[c]).intersection(set(true_values))) > 0:
+                    df[c] = df[c].map(replace_boolean)
         
     return df
     
@@ -140,13 +168,13 @@ def csv2points(csv, X='POINT_X', Y='POINT_Y', shpname=None, prj='EPSG:4326', **k
     df['geometry'] = [Point(p) for p in zip(df[X], df[Y])]
     df2shp(df, shpname, geo_column='geometry', prj=prj)
 
-def xlsx2points(xlsx, sheetname='Sheet1', X='X', Y='Y', shpname=None, prj='EPSG:4326', **kwargs):
+def xlsx2points(xlsx, sheetname='Sheet1', X='X', Y='Y', shpname=None, prj='EPSG:4326'):
     '''
     convert Excel file with point information to shapefile
     '''
     if not shpname:
         shpname = xlsx.split('.')[0] + '.shp'
-    df = pd.read_excel(xlsx, sheetname, **kwargs)
+    df = pd.read_excel(xlsx, sheetname)
     df['geometry'] = [Point(p) for p in zip(df[X], df[Y])]
     df2shp(df, shpname, geo_column='geometry', prj=prj)
 
@@ -195,11 +223,12 @@ def df2shp(df, shpname, geo_column='geometry', prj=None):
                     try:
                         if 'int' in dtype:
                             props[col] = int(value)
-                        elif schema['properties'][col] == 'str' and dtype == 'object':
+                        #if 'float' in dtype:
+                            #props[col] = np.float64(value)
+                        if schema['properties'][col] == 'str' and dtype == 'object':
                             props[col] = str(value)
                         else:
                             props[col] = value
-
                     except AttributeError: # if field is 'NoneType'
                         problem_cols.append(col)
                         props[col] = ''
