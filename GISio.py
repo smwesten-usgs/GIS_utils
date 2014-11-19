@@ -24,7 +24,7 @@ def getPRJwkt(epsg):
    return (f.read())
 
 
-def shp2df(shplist, index=None, geometry=False):
+def shp2df(shplist, index=None, geometry=False, true_values=None, false_values=None):
     '''
     Read shapefile into Pandas dataframe
     ``shplist`` = (string or list) of shapefile name(s)
