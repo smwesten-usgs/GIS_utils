@@ -7,7 +7,7 @@ import fiona
 from shapely.geometry import Point, shape, asLineString, mapping
 from shapely.ops import cascaded_union, transform
 from functools import partial
-import pyproj
+import mpl_toolkits.basemap.pyproj as pyproj
 import pandas as pd
 import shutil
 import GISio
