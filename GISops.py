@@ -8,7 +8,7 @@ from shapely.geometry import Point, Linestring, shape, asLineString, mapping
 from shapely import affinity
 from shapely.ops import cascaded_union, transform
 from functools import partial
-import pyproj
+import mpl_toolkits.basemap.pyproj as pyproj
 import pandas as pd
 import shutil
 import GISio
