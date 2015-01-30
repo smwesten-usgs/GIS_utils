@@ -4,7 +4,8 @@ warnings.filterwarnings('ignore', category=UserWarning)
 
 import numpy as np
 import fiona
-from shapely.geometry import Point, shape, asLineString, mapping
+from shapely.geometry import Point, Linestring, shape, asLineString, mapping
+from shapely import affinity
 from shapely.ops import cascaded_union, transform
 from functools import partial
 import pyproj
@@ -31,8 +32,7 @@ def projectdf(df, projection1, projection2):
     newgeo = [transform(project, g) for g in df.geometry]
 
     return newgeo
-    
-    
+
 
 def dissolve(inshp, outshp, dissolve_attribute):
     df = GISio.shp2df(shp, geometry=True)
@@ -85,4 +85,15 @@ def join_csv2shp(shapefile, shp_joinfield, csvfile, csv_joinfield, out_shapefile
 
     # write to shapefile
     GISio.df2shp(joined, out_shapefile, 'geometry', shapefile[:-4]+'.prj')
+
+
+def rotate_coords(coords, rot, origin):
+    """
+    Rotates a set of coordinates (wrapper for shapely)
+    coords: sequence point tuples (x, y)
+    """
+    ur = LineString(unrotated)
+    r = affinity.rotate(ur, rot, origin=ur[0])
+
+    return zip(r.coords.xy[0], r.coords.xy[1])
 
