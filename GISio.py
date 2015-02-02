@@ -251,7 +251,7 @@ def df2shp(df, shpname, geo_column='geometry', index=True, prj=None, epsg=None, 
                             props[col] = int(value)
                         #if 'float' in dtype:
                             #props[col] = np.float64(value)
-                        if schema['properties'][col] == 'str' and dtype == 'object':
+                        elif schema['properties'][col] == 'str' and dtype == 'object':
                             props[col] = str(value)
                         else:
                             props[col] = value
