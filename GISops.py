@@ -4,7 +4,7 @@ warnings.filterwarnings('ignore', category=UserWarning)
 
 import numpy as np
 import fiona
-from shapely.geometry import Point, Linestring, shape, asLineString, mapping
+from shapely.geometry import Point, LineString, shape, asLineString, mapping
 from shapely import affinity
 from shapely.ops import cascaded_union, transform
 from functools import partial

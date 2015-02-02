@@ -179,7 +179,7 @@ def xlsx2points(xlsx, sheetname='Sheet1', X='X', Y='Y', shpname=None, prj='EPSG:
     df2shp(df, shpname, geo_column='geometry', prj=prj)
 
 
-def df2shp(df, shpname, geo_column='geometry', index=True, prj=None):
+def df2shp(df, shpname, geo_column='geometry', index=True, prj=None, epsg=None, proj4=None):
     '''
     like above, but requires a column of shapely geometry information
     '''
@@ -203,12 +203,35 @@ def df2shp(df, shpname, geo_column='geometry', index=True, prj=None):
     # sort the dataframe columns (so that properties coincide)
     df = df.sort(axis=1)
 
+    # set projection
+    if prj is not None:
+        """
+        if 'epsg' in prj.lower():
+            epsg = int(prj.split(':')[1])
+            prjstr = getPRJwkt(epsg).replace('\n', '') # get rid of any EOL
+            ofp = open("{}.prj".format(shpname[:-4]), 'w')
+            ofp.write(prjstr)
+            ofp.close()
+        """
+        try:
+            shutil.copyfile(prj, "{}.prj".format(shpname[:-4]))
+        except IOError:
+            print 'Warning: could not find specified prj file. shp will not be projected.'
+    elif epsg is not None:
+        from fiona.crs import from_epsg
+        crs = from_epsg(int(epsg))
+    elif proj4 is not None:
+        from fiona.crs import from_string
+        crs = from_string(proj4)
+    else:
+        crs = None
+
     Type = df.iloc[0][geo_column].type
     schema = {'geometry': Type, 'properties': properties}
     knt = 0
     length = len(df)
     problem_cols = []
-    with fiona.collection(shpname, "w", "ESRI Shapefile", schema) as output:
+    with fiona.collection(shpname, "w", driver="ESRI Shapefile", crs=crs, schema=schema) as output:
         for i in range(length):
             geo = df.iloc[i][geo_column]
 
@@ -240,18 +263,6 @@ def df2shp(df, shpname, geo_column='geometry', index=True, prj=None):
                           'geometry': mapping(geo)})
             knt +=1
             print '\r{:d}%'.format(100*knt/length),
-    if prj:
-        if 'epsg' in prj.lower():
-            epsg = int(prj.split(':')[1])
-            prjstr = getPRJwkt(epsg).replace('\n', '') # get rid of any EOL
-            ofp = open("{}.prj".format(shpname[:-4]), 'w')
-            ofp.write(prjstr)
-            ofp.close()
-        else:
-            try:
-                shutil.copyfile(prj, "{}.prj".format(shpname[:-4]))
-            except IOError:
-                print 'Warning: could not find specified prj file. shp will not be projected.'
 
     if len(problem_cols) > 0:
         print 'Warning: Had problems writing these DataFrame columns: {}'.format(problem_cols)
