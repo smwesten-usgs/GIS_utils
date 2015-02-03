@@ -23,6 +23,34 @@ def getPRJwkt(epsg):
    f=urllib.urlopen("http://spatialreference.org/ref/epsg/{0}/prettywkt/".format(epsg))
    return (f.read())
 
+def get_proj4(prj):
+    """Get proj4 string for a projection file
+
+    Parameters
+    ----------
+    prj : string
+        Shapefile or projection file
+
+    Returns
+    -------
+    proj4 string (http://trac.osgeo.org/proj/)
+
+    """
+    '''
+    Using fiona (couldn't figure out how to do this with just a prj file)
+    from fiona.crs import to_string
+    c = fiona.open(shp).crs
+    proj4 = to_string(c)
+    '''
+    # using osgeo
+    from osgeo import osr
+
+    prjfile = prj.split('.')[0] + '.prj' # allows shp or prj to be argued
+    prjtext = open(prj).read()
+    srs = osr.SpatialReference()
+    srs.ImportFromESRI([prjtext])
+    proj4 = srs.ExportToProj4()
+    return proj4
 
 def shp2df(shplist, index=None, geometry=False, clipto=pd.DataFrame(), true_values=None, false_values=None):
     '''
@@ -203,28 +231,16 @@ def df2shp(df, shpname, geo_column='geometry', index=True, prj=None, epsg=None, 
     # sort the dataframe columns (so that properties coincide)
     df = df.sort(axis=1)
 
-    # set projection
-    if prj is not None:
-        """
-        if 'epsg' in prj.lower():
-            epsg = int(prj.split(':')[1])
-            prjstr = getPRJwkt(epsg).replace('\n', '') # get rid of any EOL
-            ofp = open("{}.prj".format(shpname[:-4]), 'w')
-            ofp.write(prjstr)
-            ofp.close()
-        """
-        try:
-            shutil.copyfile(prj, "{}.prj".format(shpname[:-4]))
-        except IOError:
-            print 'Warning: could not find specified prj file. shp will not be projected.'
-    elif epsg is not None:
+    # set projection (or use a pjr
+    crs = None
+    if epsg is not None:
         from fiona.crs import from_epsg
         crs = from_epsg(int(epsg))
     elif proj4 is not None:
         from fiona.crs import from_string
         crs = from_string(proj4)
     else:
-        crs = None
+        pass
 
     Type = df.iloc[0][geo_column].type
     schema = {'geometry': Type, 'properties': properties}
@@ -268,6 +284,19 @@ def df2shp(df, shpname, geo_column='geometry', index=True, prj=None, epsg=None, 
         print 'Warning: Had problems writing these DataFrame columns: {}'.format(problem_cols)
         print 'Check their dtypes.'
 
+    if prj is not None:
+        """
+        if 'epsg' in prj.lower():
+            epsg = int(prj.split(':')[1])
+            prjstr = getPRJwkt(epsg).replace('\n', '') # get rid of any EOL
+            ofp = open("{}.prj".format(shpname[:-4]), 'w')
+            ofp.write(prjstr)
+            ofp.close()
+        """
+        try:
+            shutil.copyfile(prj, "{}.prj".format(shpname[:-4]))
+        except IOError:
+            print 'Warning: could not find specified prj file. shp will not be projected.'
 
 
 
