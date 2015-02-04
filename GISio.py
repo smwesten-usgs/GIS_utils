@@ -46,7 +46,7 @@ def get_proj4(prj):
     from osgeo import osr
 
     prjfile = prj.split('.')[0] + '.prj' # allows shp or prj to be argued
-    prjtext = open(prj).read()
+    prjtext = open(prjfile).read()
     srs = osr.SpatialReference()
     srs.ImportFromESRI([prjtext])
     proj4 = srs.ExportToProj4()
@@ -65,45 +65,39 @@ def shp2df(shplist, index=None, geometry=False, clipto=pd.DataFrame(), true_valu
     '''
     if isinstance(shplist, str):
         shplist = [shplist]
-    
+
+    if len(clipto) > 0 and index:
+        clipto_index = clipto.index
+        clip = True
+    else:
+        clip = False
+
     df = pd.DataFrame()
     for shp in shplist:
         print "\nreading {}...".format(shp)
         shp_obj = fiona.open(shp, 'r')
 
-        if index:
-            try:
-                index = [c for c in shp_obj.schema['properties'].iterkeys() if index.lower() == c.lower()][0]
-            except IndexError:
-                print "Index column not found."
-
-        if len(clipto) > 0 and index:
-            clipto_index = clipto.index
-
-        attributes_dict = {}
-        knt = 0
-        length = len(shp_obj)
+        attributes = []
         for line in shp_obj:
+
             props = line['properties']
-            knt += 1
 
             # limit what is brought in to items in index of clipto
-            if len(clipto) > 0 and index:
+            if clip:
                 if not props[index] in clipto_index:
                     continue
 
-            if geometry:
-                geometry = shape(line['geometry'])
-                props['geometry'] = geometry
-            attributes_dict[line['id']] = props
-            print '\r{:d}%'.format(100*knt/length),
+            props['geometry'] = line.get('geometry', None)
+            attributes.append(props)
 
-        print '\r{:d}%'.format(100*knt/length),
         print '--> building dataframe... (may take a while for large shapefiles)'
-        shp_df = pd.DataFrame.from_dict(attributes_dict, orient='index')
+        shp_df = pd.DataFrame(attributes)
+        shp_df['geometry'] = [shape(g) for g in shp_df.geometry.tolist()]
 
-        if index:
+        if index is not None:
+            index = [c for c in shp_df.columns if c.lower() == index.lower()]
             shp_df.index = shp_df[index]
+
         df = df.append(shp_df)
 
         # convert any t/f columns to numpy boolean data
@@ -231,7 +225,7 @@ def df2shp(df, shpname, geo_column='geometry', index=True, prj=None, epsg=None, 
     # sort the dataframe columns (so that properties coincide)
     df = df.sort(axis=1)
 
-    # set projection (or use a pjr
+    # set projection (or use a prj file, which must be copied after shp is written)
     crs = None
     if epsg is not None:
         from fiona.crs import from_epsg
@@ -244,45 +238,15 @@ def df2shp(df, shpname, geo_column='geometry', index=True, prj=None, epsg=None, 
 
     Type = df.iloc[0][geo_column].type
     schema = {'geometry': Type, 'properties': properties}
-    knt = 0
     length = len(df)
-    problem_cols = []
+
+    props = shp_df.drop('geometry', axis=1).to_dict(orient='records')
+    mapped = [mapping(g) for g in shp_df.geometry]
+    print 'writing {}...'.format(shpname)
     with fiona.collection(shpname, "w", driver="ESRI Shapefile", crs=crs, schema=schema) as output:
         for i in range(length):
-            geo = df.iloc[i][geo_column]
-
-            # convert numpy ints to python ints (tedious!)
-            props = {}
-            for c in range(len(df.columns)):
-                value = df.iloc[i][c]
-                col = df.columns[c]
-                #print i,c,col,value
-                dtype = df[col].dtype.name
-                #dtype = df.iloc[c].dtype.name
-                if col == geo_column:
-                    continue
-                else:
-                    try:
-                        if 'int' in dtype:
-                            props[col] = int(value)
-                        #if 'float' in dtype:
-                            #props[col] = np.float64(value)
-                        elif schema['properties'][col] == 'str' and dtype == 'object':
-                            props[col] = str(value)
-                        else:
-                            props[col] = value
-                    except AttributeError: # if field is 'NoneType'
-                        problem_cols.append(col)
-                        props[col] = ''
-            
-            output.write({'properties': props,
-                          'geometry': mapping(geo)})
-            knt +=1
-            print '\r{:d}%'.format(100*knt/length),
-
-    if len(problem_cols) > 0:
-        print 'Warning: Had problems writing these DataFrame columns: {}'.format(problem_cols)
-        print 'Check their dtypes.'
+            output.write({'properties': props[i],
+                          'geometry': mapped[i]})
 
     if prj is not None:
         """
@@ -294,6 +258,7 @@ def df2shp(df, shpname, geo_column='geometry', index=True, prj=None, epsg=None, 
             ofp.close()
         """
         try:
+            print 'copying {} --> {}...'.format(prj, "{}.prj".format(shpname[:-4]))
             shutil.copyfile(prj, "{}.prj".format(shpname[:-4]))
         except IOError:
             print 'Warning: could not find specified prj file. shp will not be projected.'
