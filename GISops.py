@@ -66,7 +66,7 @@ def intersect_rtree(geom1, geom2):
         # test each feature inside the bounding box for intersection with the polygon geometry
         inds = [i for i in inds if geom1[i].intersects(poly)]
         isfr.append(inds)
-        print ''
+    print ''
     return isfr
 
 def intersect_brute_force(geom1, geom2):
@@ -94,7 +94,7 @@ def intersect_brute_force(geom1, geom2):
         intersects = np.array([r.intersects(g) for r in geom1])
         inds = list(np.arange(ngeom1)[intersects])
         isfr.append(inds)
-        print ''
+    print ''
     return isfr
 
 def dissolve(inshp, outshp, dissolve_attribute):
