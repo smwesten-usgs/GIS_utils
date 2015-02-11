@@ -118,11 +118,10 @@ def shp2df(shplist, index=None, geometry=False, clipto=pd.DataFrame(), true_valu
 
 def shp_properties(df):
     # convert dtypes in dataframe to 32 bit
-    i = -1
-    dtypes = list(df.dtypes)
-    for dtype in dtypes:
-        i += 1
-        if dtype == np.dtype('float64'):
+    #i = -1
+    for i, dtype in enumerate(df.dtypes.tolist()):
+        #i += 1
+        if dtype == np.dtype('float64') or df.columns[i] == 'geometry':
             continue
         # need to convert integers to 16-bit for shapefile format
         #elif dtype == np.dtype('int64') or dtype == np.dtype('int32'):
@@ -131,6 +130,9 @@ def shp_properties(df):
         elif dtype == np.dtype('int64'):
             df[df.columns[i]] = df[df.columns[i]].astype('int32')
         elif dtype == np.dtype('bool'):
+            df[df.columns[i]] = df[df.columns[i]].astype('str')
+        # convert all other datatypes (e.g. tuples) to strings
+        else:
             df[df.columns[i]] = df[df.columns[i]].astype('str')
     # strip dtypes just down to 'float' or 'int'
     dtypes = [''.join([c for c in d.name if not c.isdigit()]) for d in list(df.dtypes)]
@@ -201,10 +203,13 @@ def xlsx2points(xlsx, sheetname='Sheet1', X='X', Y='Y', shpname=None, prj='EPSG:
     df2shp(df, shpname, geo_column='geometry', prj=prj)
 
 
-def df2shp(df, shpname, geo_column='geometry', index=True, prj=None, epsg=None, proj4=None):
+def df2shp(dataframe, shpname, geo_column='geometry', index=True, prj=None, epsg=None, proj4=None):
     '''
     like above, but requires a column of shapely geometry information
     '''
+
+    df = dataframe.copy() #make a copy so the supplied dataframe isn't edited
+
     # include index in shapefile as an attribute field
     if index:
         df[df.index.name] = df.index
@@ -217,8 +222,7 @@ def df2shp(df, shpname, geo_column='geometry', index=True, prj=None, epsg=None, 
     for i, c in overtheline:
         newcolumns[i] = c
     df.columns = newcolumns
-    
-    print 'writing {}...'.format(shpname)
+
     properties = shp_properties(df)
     del properties[geo_column]
     
@@ -240,8 +244,8 @@ def df2shp(df, shpname, geo_column='geometry', index=True, prj=None, epsg=None, 
     schema = {'geometry': Type, 'properties': properties}
     length = len(df)
 
-    props = shp_df.drop('geometry', axis=1).to_dict(orient='records')
-    mapped = [mapping(g) for g in shp_df.geometry]
+    props = df.drop('geometry', axis=1).to_dict(orient='records')
+    mapped = [mapping(g) for g in df.geometry]
     print 'writing {}...'.format(shpname)
     with fiona.collection(shpname, "w", driver="ESRI Shapefile", crs=crs, schema=schema) as output:
         for i in range(length):

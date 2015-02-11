@@ -21,8 +21,8 @@ def projectdf(df, projection1, projection2):
     '''
     
     # define projections
-    pr1 = pyproj.Proj(projection1)
-    pr2 = pyproj.Proj(projection2)
+    pr1 = pyproj.Proj(projection1, errcheck=True, preserve_units=True)
+    pr2 = pyproj.Proj(projection2, errcheck=True, preserve_units=True)
     
     # projection function
     # (see http://toblerity.org/shapely/shapely.html#module-shapely.ops)
@@ -33,6 +33,69 @@ def projectdf(df, projection1, projection2):
 
     return newgeo
 
+def intersect_rtree(geom1, geom2):
+    """Intersect features in geom1 with those in geom2. For each feature in geom2, return a list of
+     the indices of the intersecting features in geom1.
+
+    Parameters:
+    ----------
+    geom1 : list
+        list of shapely geometry objects
+    geom2 : list
+        list of shapely polygon objects to be intersected with features in geom1
+
+    Returns:
+    -------
+    A list of the same length as geom2; containing for each feature in geom2,
+    a list of indicies of intersecting geometries in geom1.
+    """
+    from rtree import index
+
+    # build spatial index for items in geom1
+    print 'Building rtree spatial index...'
+    idx = index.Index()
+    for i, g in enumerate(geom1):
+        idx.insert(i, g.bounds)
+
+    isfr = []
+    print 'Intersecting {} features...'.format(len(geom2))
+    for pind, poly in enumerate(geom2):
+        print '\r{}'.format(pind),
+        # test for intersection with bounding box of each polygon feature in geom2 using spatial index
+        inds = [i for i in idx.intersection(poly.bounds)]
+        # test each feature inside the bounding box for intersection with the polygon geometry
+        inds = [i for i in inds if geom1[i].intersects(poly)]
+        isfr.append(inds)
+        print ''
+    return isfr
+
+def intersect_brute_force(geom1, geom2):
+    """Same as intersect_rtree, except without spatial indexing. Fine for smaller datasets,
+    but scales by 10^4 with the side of the problem domain.
+
+    Parameters:
+    ----------
+    geom1 : list
+        list of shapely geometry objects
+    geom2 : list
+        list of shapely polygon objects to be intersected with features in geom1
+
+    Returns:
+    -------
+    A list of the same length as geom2; containing for each feature in geom2,
+    a list of indicies of intersecting geometries in geom1.
+    """
+
+    isfr = []
+    ngeom1 = len(geom1)
+    print 'Intersecting {} features...'.format(len(geom2))
+    for i, g in enumerate(geom2):
+        print '\r{}'.format(i),
+        intersects = np.array([r.intersects(g) for r in geom1])
+        inds = list(np.arange(ngeom1)[intersects])
+        isfr.append(inds)
+        print ''
+    return isfr
 
 def dissolve(inshp, outshp, dissolve_attribute):
     df = GISio.shp2df(shp, geometry=True)
