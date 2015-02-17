@@ -67,7 +67,7 @@ def shp2df(shplist, index=None, geometry=False, clipto=pd.DataFrame(), true_valu
         shplist = [shplist]
 
     if len(clipto) > 0 and index:
-        clipto_index = clipto.index
+        clipto_index = np.ravel(clipto.index)
         clip = True
     else:
         clip = False
@@ -76,6 +76,11 @@ def shp2df(shplist, index=None, geometry=False, clipto=pd.DataFrame(), true_valu
     for shp in shplist:
         print "\nreading {}...".format(shp)
         shp_obj = fiona.open(shp, 'r')
+
+        if index is not None:
+            # handle capitolization issues with index field name
+            fields = shp_obj.schema['properties'].keys()
+            index = [f for f in fields if index.lower() == f.lower()][0]
 
         attributes = []
         for line in shp_obj:
@@ -92,11 +97,16 @@ def shp2df(shplist, index=None, geometry=False, clipto=pd.DataFrame(), true_valu
 
         print '--> building dataframe... (may take a while for large shapefiles)'
         shp_df = pd.DataFrame(attributes)
-        shp_df['geometry'] = [shape(g) for g in shp_df.geometry.tolist()]
 
+        # only make a geometry column if there are geometries (can't have any entries without geometry)
+        if shp_df.geometry.tolist().count(None) == 0:
+            shp_df['geometry'] = [shape(g) for g in shp_df.geometry.tolist()]
+        else:
+            shp_df.drop('geometry', axis=1, inplace=True)
+
+        # set the dataframe index from the index column
         if index is not None:
-            index = [c for c in shp_df.columns if c.lower() == index.lower()]
-            shp_df.index = shp_df[index]
+            shp_df.index = shp_df[index].values
 
         df = df.append(shp_df)
 
