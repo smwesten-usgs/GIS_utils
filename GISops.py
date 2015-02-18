@@ -19,11 +19,14 @@ def projectdf(df, projection1, projection2):
     ``projection1``: (string) Proj4 string specifying source projection
     ``projection2``: (string) Proj4 string specifying destination projection
     '''
-    
+    projection1 = str(projection1)
+    projection2 = str(projection2)
+
+
     # define projections
     pr1 = pyproj.Proj(projection1, errcheck=True, preserve_units=True)
     pr2 = pyproj.Proj(projection2, errcheck=True, preserve_units=True)
-    
+
     # projection function
     # (see http://toblerity.org/shapely/shapely.html#module-shapely.ops)
     project = partial(pyproj.transform, pr1, pr2)
