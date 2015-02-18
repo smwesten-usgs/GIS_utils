@@ -52,7 +52,8 @@ def get_proj4(prj):
     proj4 = srs.ExportToProj4()
     return proj4
 
-def shp2df(shplist, index=None, clipto=pd.DataFrame(), true_values=None, false_values=None):
+def shp2df(shplist, index=None, clipto=pd.DataFrame(), true_values=None, false_values=None, \
+           skip_empty_geom=True):
     '''
     Read shapefile into Pandas dataframe
     ``shplist`` = (string or list) of shapefile name(s)
@@ -98,11 +99,17 @@ def shp2df(shplist, index=None, clipto=pd.DataFrame(), true_values=None, false_v
         print '--> building dataframe... (may take a while for large shapefiles)'
         shp_df = pd.DataFrame(attributes)
 
-        # only make a geometry column if there are geometries (can't have any entries without geometry)
-        if shp_df.geometry.tolist().count(None) == 0:
+        # handle null geometries
+        geoms = shp_df.geometry.tolist()
+        if geoms.count(None) == 0:
+            shp_df['geometry'] = [shape(g) for g in geoms]
+        elif skip_empty_geom:
+            null_geoms = [i for i, g in enumerate(geoms) if g is None]
+            shp_df.drop(null_geoms, axis=0, inplace=True)
             shp_df['geometry'] = [shape(g) for g in shp_df.geometry.tolist()]
         else:
-            shp_df.drop('geometry', axis=1, inplace=True)
+            shp_df['geometry'] = [shape(g) if g is not None else None
+                                  for g in geoms]
 
         # set the dataframe index from the index column
         if index is not None:
