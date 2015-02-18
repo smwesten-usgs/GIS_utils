@@ -52,7 +52,7 @@ def get_proj4(prj):
     proj4 = srs.ExportToProj4()
     return proj4
 
-def shp2df(shplist, index=None, geometry=False, clipto=pd.DataFrame(), true_values=None, false_values=None):
+def shp2df(shplist, index=None, clipto=pd.DataFrame(), true_values=None, false_values=None):
     '''
     Read shapefile into Pandas dataframe
     ``shplist`` = (string or list) of shapefile name(s)
