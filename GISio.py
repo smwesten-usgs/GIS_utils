@@ -213,7 +213,7 @@ def xlsx2points(xlsx, sheetname='Sheet1', X='X', Y='Y', shpname=None, prj='EPSG:
     df2shp(df, shpname, geo_column='geometry', prj=prj)
 
 
-def df2shp(dataframe, shpname, geo_column='geometry', index=True, prj=None, epsg=None, proj4=None):
+def df2shp(dataframe, shpname, geo_column='geometry', index=False, prj=None, epsg=None, proj4=None):
     '''
     like above, but requires a column of shapely geometry information
     '''
@@ -222,7 +222,10 @@ def df2shp(dataframe, shpname, geo_column='geometry', index=True, prj=None, epsg
 
     # include index in shapefile as an attribute field
     if index:
+        if df.index.name is None:
+            df.index.name = 'index'
         df[df.index.name] = df.index
+
     # enforce character limit for names! (otherwise fiona marks it zero)
     # somewhat kludgey, but should work for duplicates up to 99
     df.columns = map(str, df.columns) # convert columns to strings in case some are ints
