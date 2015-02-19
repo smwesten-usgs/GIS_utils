@@ -84,32 +84,44 @@ def shp2df(shplist, index=None, clipto=pd.DataFrame(), true_values=None, false_v
             index = [f for f in fields if index.lower() == f.lower()][0]
 
         attributes = []
-        for line in shp_obj:
+        # for reading in shapefiles
+        if shp_obj.schema['geometry'] != 'None':
+            for line in shp_obj:
 
-            props = line['properties']
+                props = line['properties']
+                # limit what is brought in to items in index of clipto
+                if clip:
+                    if not props[index] in clipto_index:
+                        continue
+                props['geometry'] = line.get('geometry', None)
+                attributes.append(props)
+            print '--> building dataframe... (may take a while for large shapefiles)'
+            shp_df = pd.DataFrame(attributes)
 
-            # limit what is brought in to items in index of clipto
-            if clip:
-                if not props[index] in clipto_index:
-                    continue
+            # handle null geometries
+            geoms = shp_df.geometry.tolist()
+            if geoms.count(None) == 0:
+                shp_df['geometry'] = [shape(g) for g in geoms]
+            elif skip_empty_geom:
+                null_geoms = [i for i, g in enumerate(geoms) if g is None]
+                shp_df.drop(null_geoms, axis=0, inplace=True)
+                shp_df['geometry'] = [shape(g) for g in shp_df.geometry.tolist()]
+            else:
+                shp_df['geometry'] = [shape(g) if g is not None else None
+                                      for g in geoms]
 
-            props['geometry'] = line.get('geometry', None)
-            attributes.append(props)
-
-        print '--> building dataframe... (may take a while for large shapefiles)'
-        shp_df = pd.DataFrame(attributes)
-
-        # handle null geometries
-        geoms = shp_df.geometry.tolist()
-        if geoms.count(None) == 0:
-            shp_df['geometry'] = [shape(g) for g in geoms]
-        elif skip_empty_geom:
-            null_geoms = [i for i, g in enumerate(geoms) if g is None]
-            shp_df.drop(null_geoms, axis=0, inplace=True)
-            shp_df['geometry'] = [shape(g) for g in shp_df.geometry.tolist()]
+        # for reading in DBF files (just like shps, but without geometry)
         else:
-            shp_df['geometry'] = [shape(g) if g is not None else None
-                                  for g in geoms]
+            for line in shp_obj:
+
+                props = line['properties']
+                # limit what is brought in to items in index of clipto
+                if clip:
+                    if not props[index] in clipto_index:
+                        continue
+                attributes.append(props)
+            print '--> building dataframe... (may take a while for large shapefiles)'
+            shp_df = pd.DataFrame(attributes)
 
         # set the dataframe index from the index column
         if index is not None:
