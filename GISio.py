@@ -232,12 +232,25 @@ def xlsx2points(xlsx, sheetname='Sheet1', X='X', Y='Y', shpname=None, prj='EPSG:
     df2shp(df, shpname, geo_column='geometry', prj=prj)
 
 
-def df2shp(dataframe, shpname, geo_column='geometry', index=False, prj=None, epsg=None, proj4=None):
+def df2shp(dataframe, shpname, geo_column='geometry', index=False, prj=None, epsg=None, proj4=None, crs=None):
     '''
-    like above, but requires a column of shapely geometry information
+    Write a DataFrame to a shapefile
+    dataframe: dataframe to write to shapefile
+    geo_column: optional column containing geometry to write - default is 'geometry'
+    index: If true, write out the dataframe index as a column
+    --->there are four ways to specify the projection....choose one
+    prj: <file>.prj filename (string)
+    epsg: EPSG identifier (integer)
+    proj4: pyproj style projection string definition
+    crs: crs attribute (dictionary) as read by fiona
     '''
 
-    df = dataframe.copy() #make a copy so the supplied dataframe isn't edited
+    df = dataframe.copy() # make a copy so the supplied dataframe isn't edited
+
+    # reassign geometry column if geo_column is special (e.g. something other than "geometry")
+    if geo_column != 'geometry':
+        df['geometry'] = df[geo_column]
+        df.drop(geo_column, axis=1, inplace=True)
 
     # include index in shapefile as an attribute field
     if index:
@@ -256,23 +269,26 @@ def df2shp(dataframe, shpname, geo_column='geometry', index=False, prj=None, eps
     df.columns = newcolumns
 
     properties = shp_properties(df)
-    del properties[geo_column]
-    
+    del properties['geometry']
+
     # sort the dataframe columns (so that properties coincide)
     df = df.sort(axis=1)
 
     # set projection (or use a prj file, which must be copied after shp is written)
-    crs = None
+    # alternatively, provide a crs in dictionary form as read using fiona
+    # from a shapefile like fiona.open(inshpfile).crs
+
     if epsg is not None:
         from fiona.crs import from_epsg
         crs = from_epsg(int(epsg))
     elif proj4 is not None:
         from fiona.crs import from_string
         crs = from_string(proj4)
+    elif crs is not None:
+        pass
     else:
         pass
-
-    Type = df.iloc[0][geo_column].type
+    Type = df.iloc[0]['geometry'].type
     schema = {'geometry': Type, 'properties': properties}
     length = len(df)
 
