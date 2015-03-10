@@ -52,7 +52,8 @@ def get_proj4(prj):
     proj4 = srs.ExportToProj4()
     return proj4
 
-def shp2df(shplist, index=None, geometry=False, clipto=pd.DataFrame(), true_values=None, false_values=None):
+def shp2df(shplist, index=None, clipto=pd.DataFrame(), true_values=None, false_values=None, \
+           skip_empty_geom=True):
     '''
     Read shapefile into Pandas dataframe
     ``shplist`` = (string or list) of shapefile name(s)
@@ -83,26 +84,44 @@ def shp2df(shplist, index=None, geometry=False, clipto=pd.DataFrame(), true_valu
             index = [f for f in fields if index.lower() == f.lower()][0]
 
         attributes = []
-        for line in shp_obj:
+        # for reading in shapefiles
+        if shp_obj.schema['geometry'] != 'None':
+            for line in shp_obj:
 
-            props = line['properties']
+                props = line['properties']
+                # limit what is brought in to items in index of clipto
+                if clip:
+                    if not props[index] in clipto_index:
+                        continue
+                props['geometry'] = line.get('geometry', None)
+                attributes.append(props)
+            print '--> building dataframe... (may take a while for large shapefiles)'
+            shp_df = pd.DataFrame(attributes)
 
-            # limit what is brought in to items in index of clipto
-            if clip:
-                if not props[index] in clipto_index:
-                    continue
+            # handle null geometries
+            geoms = shp_df.geometry.tolist()
+            if geoms.count(None) == 0:
+                shp_df['geometry'] = [shape(g) for g in geoms]
+            elif skip_empty_geom:
+                null_geoms = [i for i, g in enumerate(geoms) if g is None]
+                shp_df.drop(null_geoms, axis=0, inplace=True)
+                shp_df['geometry'] = [shape(g) for g in shp_df.geometry.tolist()]
+            else:
+                shp_df['geometry'] = [shape(g) if g is not None else None
+                                      for g in geoms]
 
-            props['geometry'] = line.get('geometry', None)
-            attributes.append(props)
-
-        print '--> building dataframe... (may take a while for large shapefiles)'
-        shp_df = pd.DataFrame(attributes)
-
-        # only make a geometry column if there are geometries (can't have any entries without geometry)
-        if shp_df.geometry.tolist().count(None) == 0:
-            shp_df['geometry'] = [shape(g) for g in shp_df.geometry.tolist()]
+        # for reading in DBF files (just like shps, but without geometry)
         else:
-            shp_df.drop('geometry', axis=1, inplace=True)
+            for line in shp_obj:
+
+                props = line['properties']
+                # limit what is brought in to items in index of clipto
+                if clip:
+                    if not props[index] in clipto_index:
+                        continue
+                attributes.append(props)
+            print '--> building dataframe... (may take a while for large shapefiles)'
+            shp_df = pd.DataFrame(attributes)
 
         # set the dataframe index from the index column
         if index is not None:
@@ -213,16 +232,32 @@ def xlsx2points(xlsx, sheetname='Sheet1', X='X', Y='Y', shpname=None, prj='EPSG:
     df2shp(df, shpname, geo_column='geometry', prj=prj)
 
 
-def df2shp(dataframe, shpname, geo_column='geometry', index=True, prj=None, epsg=None, proj4=None):
+def df2shp(dataframe, shpname, geo_column='geometry', index=False, prj=None, epsg=None, proj4=None, crs=None):
     '''
-    like above, but requires a column of shapely geometry information
+    Write a DataFrame to a shapefile
+    dataframe: dataframe to write to shapefile
+    geo_column: optional column containing geometry to write - default is 'geometry'
+    index: If true, write out the dataframe index as a column
+    --->there are four ways to specify the projection....choose one
+    prj: <file>.prj filename (string)
+    epsg: EPSG identifier (integer)
+    proj4: pyproj style projection string definition
+    crs: crs attribute (dictionary) as read by fiona
     '''
 
-    df = dataframe.copy() #make a copy so the supplied dataframe isn't edited
+    df = dataframe.copy() # make a copy so the supplied dataframe isn't edited
+
+    # reassign geometry column if geo_column is special (e.g. something other than "geometry")
+    if geo_column != 'geometry':
+        df['geometry'] = df[geo_column]
+        df.drop(geo_column, axis=1, inplace=True)
 
     # include index in shapefile as an attribute field
     if index:
+        if df.index.name is None:
+            df.index.name = 'index'
         df[df.index.name] = df.index
+
     # enforce character limit for names! (otherwise fiona marks it zero)
     # somewhat kludgey, but should work for duplicates up to 99
     df.columns = map(str, df.columns) # convert columns to strings in case some are ints
@@ -234,23 +269,26 @@ def df2shp(dataframe, shpname, geo_column='geometry', index=True, prj=None, epsg
     df.columns = newcolumns
 
     properties = shp_properties(df)
-    del properties[geo_column]
-    
+    del properties['geometry']
+
     # sort the dataframe columns (so that properties coincide)
     df = df.sort(axis=1)
 
     # set projection (or use a prj file, which must be copied after shp is written)
-    crs = None
+    # alternatively, provide a crs in dictionary form as read using fiona
+    # from a shapefile like fiona.open(inshpfile).crs
+
     if epsg is not None:
         from fiona.crs import from_epsg
         crs = from_epsg(int(epsg))
     elif proj4 is not None:
         from fiona.crs import from_string
         crs = from_string(proj4)
+    elif crs is not None:
+        pass
     else:
         pass
-
-    Type = df.iloc[0][geo_column].type
+    Type = df.iloc[0]['geometry'].type
     schema = {'geometry': Type, 'properties': properties}
     length = len(df)
 
