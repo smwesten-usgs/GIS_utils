@@ -9,6 +9,7 @@ from shapely.geometry import Point, shape, asLineString, mapping
 from shapely.wkt import loads
 import pandas as pd
 import shutil
+import numpy as np
 
 def getPRJwkt(epsg):
    """
@@ -22,6 +23,26 @@ def getPRJwkt(epsg):
    import urllib
    f=urllib.urlopen("http://spatialreference.org/ref/epsg/{0}/prettywkt/".format(epsg))
    return (f.read())
+
+def get_df_bounds(indf):
+    """
+
+    :param indf: dataframe that includes a geometry column
+    :return: dfbounds: a tuple of (minx, miny, maxx, maxy) bounding all the geometry column members
+    """
+    minx = np.inf
+    miny = np.inf
+    maxx = -np.inf
+    maxy = -np.inf
+    for cgeom in indf.geometry:
+        tmpbounds = cgeom.bounds
+
+        minx = np.min([minx, tmpbounds[0]])
+        miny = np.min([miny, tmpbounds[1]])
+        maxx = np.max([maxx, tmpbounds[2]])
+        maxy = np.max([maxy, tmpbounds[3]])
+
+    return (minx, miny, maxx, maxy)
 
 def get_proj4(prj):
     """Get proj4 string for a projection file
