@@ -100,6 +100,7 @@ def intersect_brute_force(geom1, geom2):
     print ''
     return isfr
 
+
 def dissolve(inshp, outshp, dissolve_attribute):
     df = GISio.shp2df(shp, geometry=True)
     
