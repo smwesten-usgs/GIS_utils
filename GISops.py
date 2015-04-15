@@ -14,11 +14,18 @@ import shutil
 import GISio
 
 def projectdf(df, projection1, projection2):
-    '''
-    ``df``: (dataframe) containing "geometry" column of shapely geometries
-    ``projection1``: (string) Proj4 string specifying source projection
-    ``projection2``: (string) Proj4 string specifying destination projection
-    '''
+    """Reproject a dataframe's geometry column to new coordinate system
+
+    Parameters
+    ----------
+    df: dataframe
+        Contains "geometry" column of shapely geometries
+
+    projection1: string
+        Proj4 string specifying source projection
+    projection2: string
+        Proj4 string specifying destination projection
+    """
     projection1 = str(projection1)
     projection2 = str(projection2)
 
