@@ -75,16 +75,30 @@ def get_proj4(prj):
 
 def shp2df(shplist, index=None, clipto=pd.DataFrame(), true_values=None, false_values=None, \
            skip_empty_geom=True):
-    '''
-    Read shapefile into Pandas dataframe
-    ``shplist`` = (string or list) of shapefile name(s)
-    ``index`` = (string) column to use as index for dataframe
-    ``geometry`` = (True/False) whether or not to read geometric information
-    ``clipto`` = (dataframe) limit what is brought in to items in index of clipto (requires index)
-    ``true_values`` = (list) same as argument for pandas read_csv
-    ``false_values`` = (list) same as argument for pandas read_csv
-    from shapefile into dataframe column "geometry"
-    '''
+    """Read shapefile into pandas DataFrame.
+
+    Parameters
+    ----------
+    shplist : string or list
+        of shapefile name(s)
+    index : string
+        Column to use as index for dataframe
+    clipto : DataFrame
+        limit what is brought in to items in index of clipto (requires index)
+    true_values : list
+        same as argument for pandas read_csv
+    false_values : list
+        same as argument for pandas read_csv
+    skip_empty_geom : True/False, default True
+        Drops shapefile entries with null geometries.
+        DBF files (which specify null geometries in their schema) will still be read.
+
+    Returns
+    -------
+    df : DataFrame
+        with attribute fields as columns; feature geometries are stored as
+    shapely geometry objects in the 'geometry' column.
+    """
     if isinstance(shplist, str):
         shplist = [shplist]
 
