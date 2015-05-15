@@ -180,7 +180,7 @@ def shp2df(shplist, index=None, clipto=pd.DataFrame(), true_values=None, false_v
     return df
     
 
-def shp_properties(df):
+def shp_properties2(df):
     # convert dtypes in dataframe to 32 bit
     #i = -1
     for i, dtype in enumerate(df.dtypes.tolist()):
@@ -202,6 +202,26 @@ def shp_properties(df):
     dtypes = [''.join([c for c in d.name if not c.isdigit()]) for d in list(df.dtypes)]
     #dtypes = [d.name for d in list(df.dtypes)]
     # also exchange any 'object' dtype for 'str'
+    dtypes = [d.replace('object', 'str') for d in dtypes]
+    properties = dict(zip(df.columns, dtypes))
+    return properties
+
+def shp_properties(df):
+
+    # remap 64 bit integers to 32 bit
+    int64 = (df.dtypes == 'int64')
+    df.loc[:, int64] = df.loc[:, int64].astype('int32')
+
+    # remap floats
+    floats = np.array(['float' in d.name for d in df.dtypes])
+    df.loc[:, floats] = df.loc[:, floats].astype('float64')
+
+    # remap everything else to strings
+    to_strings = (df.dtypes != 'int64') & (df.dtypes != 'float64') & (df.columns != 'geometry')
+    df.loc[:, to_strings] = df.loc[:, to_strings].astype('str')
+
+    # strip dtypes to just 'float', 'int' or 'str'
+    dtypes = [''.join([c for c in d.name if not c.isdigit()]) for d in list(df.dtypes)]
     dtypes = [d.replace('object', 'str') for d in dtypes]
     properties = dict(zip(df.columns, dtypes))
     return properties
