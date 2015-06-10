@@ -144,6 +144,7 @@ def shp2df(shplist, index=None, clipto=pd.DataFrame(), true_values=None, false_v
             print '--> building dataframe... (may take a while for large shapefiles)'
             shp_df = pd.DataFrame(attributes)
 
+        shp_obj.close()
         # set the dataframe index from the index column
         if index is not None:
             shp_df.index = shp_df[index].values
