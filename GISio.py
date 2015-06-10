@@ -75,16 +75,30 @@ def get_proj4(prj):
 
 def shp2df(shplist, index=None, clipto=pd.DataFrame(), true_values=None, false_values=None, \
            skip_empty_geom=True):
-    '''
-    Read shapefile into Pandas dataframe
-    ``shplist`` = (string or list) of shapefile name(s)
-    ``index`` = (string) column to use as index for dataframe
-    ``geometry`` = (True/False) whether or not to read geometric information
-    ``clipto`` = (dataframe) limit what is brought in to items in index of clipto (requires index)
-    ``true_values`` = (list) same as argument for pandas read_csv
-    ``false_values`` = (list) same as argument for pandas read_csv
-    from shapefile into dataframe column "geometry"
-    '''
+    """Read shapefile into pandas DataFrame.
+
+    Parameters
+    ----------
+    shplist : string or list
+        of shapefile name(s)
+    index : string
+        Column to use as index for dataframe
+    clipto : DataFrame
+        limit what is brought in to items in index of clipto (requires index)
+    true_values : list
+        same as argument for pandas read_csv
+    false_values : list
+        same as argument for pandas read_csv
+    skip_empty_geom : True/False, default True
+        Drops shapefile entries with null geometries.
+        DBF files (which specify null geometries in their schema) will still be read.
+
+    Returns
+    -------
+    df : DataFrame
+        with attribute fields as columns; feature geometries are stored as
+    shapely geometry objects in the 'geometry' column.
+    """
     if isinstance(shplist, str):
         shplist = [shplist]
 
@@ -167,7 +181,7 @@ def shp2df(shplist, index=None, clipto=pd.DataFrame(), true_values=None, false_v
     return df
     
 
-def shp_properties(df):
+def shp_properties2(df):
     # convert dtypes in dataframe to 32 bit
     #i = -1
     for i, dtype in enumerate(df.dtypes.tolist()):
@@ -189,6 +203,26 @@ def shp_properties(df):
     dtypes = [''.join([c for c in d.name if not c.isdigit()]) for d in list(df.dtypes)]
     #dtypes = [d.name for d in list(df.dtypes)]
     # also exchange any 'object' dtype for 'str'
+    dtypes = [d.replace('object', 'str') for d in dtypes]
+    properties = dict(zip(df.columns, dtypes))
+    return properties
+
+def shp_properties(df):
+
+    # remap 64 bit integers to 32 bit
+    int64 = (df.dtypes == 'int64')
+    df.loc[:, int64] = df.loc[:, int64].astype('int32')
+
+    # remap floats
+    floats = np.array(['float' in d.name for d in df.dtypes])
+    df.loc[:, floats] = df.loc[:, floats].astype('float64')
+
+    # remap everything else to strings
+    to_strings = (df.dtypes != 'int64') & (df.dtypes != 'float64') & (df.columns != 'geometry')
+    df.loc[:, to_strings] = df.loc[:, to_strings].astype('str')
+
+    # strip dtypes to just 'float', 'int' or 'str'
+    dtypes = [''.join([c for c in d.name if not c.isdigit()]) for d in list(df.dtypes)]
     dtypes = [d.replace('object', 'str') for d in dtypes]
     properties = dict(zip(df.columns, dtypes))
     return properties
