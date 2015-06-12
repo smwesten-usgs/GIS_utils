@@ -2,6 +2,7 @@
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning)
 
+import time
 import numpy as np
 import fiona
 from shapely.geometry import Point, LineString, shape, asLineString, mapping
@@ -82,10 +83,12 @@ def build_rtree_index(geom):
     from rtree import index
 
     # build spatial index for items in geom1
-    print 'Building rtree spatial index...'
+    print '\nBuilding spatial index...'
+    ta = time.time()
     idx = index.Index()
     for i, g in enumerate(geom):
         idx.insert(i, g.bounds)
+    print "finished in {:.2f}s".format(time.time() - ta)
     return idx
 
 def intersect_rtree(geom1, geom2):
@@ -111,15 +114,16 @@ def intersect_rtree(geom1, geom2):
     else:
         idx = geom1
     isfr = []
-    print 'Intersecting {} features...'.format(len(geom2))
+    print '\nIntersecting {} features...'.format(len(geom2))
+    ta = time.time()
     for pind, poly in enumerate(geom2):
-        print '\r{}'.format(pind),
+        print '\r{}'.format(pind + 1),
         # test for intersection with bounding box of each polygon feature in geom2 using spatial index
         inds = [i for i in idx.intersection(poly.bounds)]
         # test each feature inside the bounding box for intersection with the polygon geometry
         inds = [i for i in inds if geom1[i].intersects(poly)]
         isfr.append(inds)
-    print '\n'
+    print "\nfinished in {:.2f}s\n".format(time.time() - ta)
     return isfr
 
 def intersect_brute_force(geom1, geom2):
