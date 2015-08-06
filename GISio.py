@@ -73,7 +73,7 @@ def get_proj4(prj):
     proj4 = srs.ExportToProj4()
     return proj4
 
-def shp2df(shplist, index=None, clipto=pd.DataFrame(), true_values=None, false_values=None, \
+def shp2df(shplist, index=None, clipto=[], true_values=None, false_values=None, \
            skip_empty_geom=True):
     """Read shapefile into pandas DataFrame.
 
@@ -83,7 +83,7 @@ def shp2df(shplist, index=None, clipto=pd.DataFrame(), true_values=None, false_v
         of shapefile name(s)
     index : string
         Column to use as index for dataframe
-    clipto : DataFrame
+    clipto : list
         limit what is brought in to items in index of clipto (requires index)
     true_values : list
         same as argument for pandas read_csv
@@ -103,7 +103,6 @@ def shp2df(shplist, index=None, clipto=pd.DataFrame(), true_values=None, false_v
         shplist = [shplist]
 
     if len(clipto) > 0 and index:
-        clipto_index = np.ravel(clipto.index)
         clip = True
     else:
         clip = False
@@ -126,7 +125,7 @@ def shp2df(shplist, index=None, clipto=pd.DataFrame(), true_values=None, false_v
                 props = line['properties']
                 # limit what is brought in to items in index of clipto
                 if clip:
-                    if not props[index] in clipto_index:
+                    if not props[index] in clipto:
                         continue
                 props['geometry'] = line.get('geometry', None)
                 attributes.append(props)
