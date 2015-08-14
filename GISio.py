@@ -307,6 +307,10 @@ def df2shp(dataframe, shpname, geo_column='geometry', index=False, prj=None, eps
         df['geometry'] = df[geo_column]
         df.drop(geo_column, axis=1, inplace=True)
 
+    # assign none for geometry, to write a dbf file from dataframe
+    if 'geometry' not in df.columns:
+        df['geometry'] = None
+        
     # include index in shapefile as an attribute field
     if index:
         if df.index.name is None:
@@ -343,7 +347,12 @@ def df2shp(dataframe, shpname, geo_column='geometry', index=False, prj=None, eps
         pass
     else:
         pass
-    Type = df.iloc[0]['geometry'].type
+        
+    if df.iloc[0]['geometry'] is not None:
+        Type = df.iloc[0]['geometry'].type
+    else:
+        Type = None
+        
     schema = {'geometry': Type, 'properties': properties}
     length = len(df)
 
