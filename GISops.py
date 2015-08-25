@@ -13,6 +13,10 @@ import pyproj
 import pandas as pd
 import shutil
 import GISio
+try:
+    from rtree import index
+except:
+    print 'Warning: rtree not installed - some functions will not work'
 
 def projectdf(df, projection1, projection2):
     """Reproject a dataframe's geometry column to new coordinate system
@@ -90,6 +94,30 @@ def build_rtree_index(geom):
         idx.insert(i, g.bounds)
     print "finished in {:.2f}s".format(time.time() - ta)
     return idx
+
+def projectdf_XY(df, xcolin, ycolin, xcoltrans, ycoltrans, projection1, projection2):
+    """
+
+    :param df: dataframe containing X and Y data to transform. NB - new columns will be written in place!
+    :param xcolin: column of df with X coordinate in projection1
+    :param ycolin: column of df with Y cordinate in projection1
+    :param xcoltrans: column of df THAT WILL BE WRITTEN with X projected to projection2
+    :param ycoltrans: column of df THAT WILL BE WRITTEN with Y projected to projection2
+    :param projection1: (string) Proj4 string specifying source projection
+    :param projection2: (string) Proj4 string specifying destination projection
+    """
+    projection1 = str(projection1)
+    projection2 = str(projection2)
+
+    # define projections
+    pr1 = pyproj.Proj(projection1, errcheck=True, preserve_units=True)
+    pr2 = pyproj.Proj(projection2, errcheck=True, preserve_units=True)
+
+
+    df[xcoltrans], df[ycoltrans] = pyproj.transform(pr1, pr2, df[xcolin].tolist(), df[ycolin].tolist())
+
+
+
 
 def intersect_rtree(geom1, geom2):
     """Intersect features in geom1 with those in geom2. For each feature in geom2, return a list of
