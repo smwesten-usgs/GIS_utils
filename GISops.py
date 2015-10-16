@@ -16,7 +16,7 @@ import GISio
 try:
     from rtree import index
 except:
-    print 'Warning: rtree not installed - some functions will not work'
+    print('Warning: rtree not installed - some functions will not work')
 
 def projectdf(df, projection1, projection2):
     """Reproject a dataframe's geometry column to new coordinate system
@@ -74,6 +74,49 @@ def project(geom, projection1, projection2):
     # do the transformation!
     return transform(project, geom)
 
+def project_raster(src_raster, dst_raster, dst_crs):
+    """Reproject a raster from one coordinate system to another using Rasterio
+    code from: https://github.com/mapbox/rasterio/blob/master/docs/reproject.rst
+
+    Parameters
+    ----------
+    src_raster : str
+        Filename of source raster.
+    dst_raster : str
+        Filename of reprojected (destination) raster.
+    dst_crs : str
+        Coordinate system of reprojected raster.
+        Examples:
+            'EPSG:26715' 
+    """
+    try:
+        import rasterio
+        from rasterio.warp import calculate_default_transform, reproject, RESAMPLING
+    except:
+        print('This function requires rasterio.')
+
+    with rasterio.open(src_raster) as src:
+        affine, width, height = calculate_default_transform(
+            src.crs, dst_crs, src.width, src.height, *src.bounds)
+        kwargs = src.meta.copy()
+        kwargs.update({
+            'crs': dst_crs,
+            'transform': affine,
+            'affine': affine,
+            'width': width,
+            'height': height
+        })
+        with rasterio.open(dst_raster, 'w', **kwargs) as dst:
+            for i in range(1, src.count + 1):
+                reproject(
+                    source=rasterio.band(src, i),
+                    destination=rasterio.band(dst, i),
+                    src_transform=src.affine,
+                    src_crs=src.crs,
+                    dst_transform=affine,
+                    dst_crs=dst_crs,
+                    resampling=RESAMPLING.nearest)
+
 def build_rtree_index(geom):
     """Builds an rtree index. Useful for multiple intersections with same index.
 
@@ -87,12 +130,12 @@ def build_rtree_index(geom):
     from rtree import index
 
     # build spatial index for items in geom1
-    print '\nBuilding spatial index...'
+    print('\nBuilding spatial index...')
     ta = time.time()
     idx = index.Index()
     for i, g in enumerate(geom):
         idx.insert(i, g.bounds)
-    print "finished in {:.2f}s".format(time.time() - ta)
+    print("finished in {:.2f}s".format(time.time() - ta))
     return idx
 
 def projectdf_XY(df, xcolin, ycolin, xcoltrans, ycoltrans, projection1, projection2):
@@ -142,16 +185,16 @@ def intersect_rtree(geom1, geom2):
     else:
         idx = geom1
     isfr = []
-    print '\nIntersecting {} features...'.format(len(geom2))
+    print('\nIntersecting {} features...'.format(len(geom2)))
     ta = time.time()
     for pind, poly in enumerate(geom2):
-        print '\r{}'.format(pind + 1),
+        print('\r{}'.format(pind + 1))
         # test for intersection with bounding box of each polygon feature in geom2 using spatial index
         inds = [i for i in idx.intersection(poly.bounds)]
         # test each feature inside the bounding box for intersection with the polygon geometry
         inds = [i for i in inds if geom1[i].intersects(poly)]
         isfr.append(inds)
-    print "\nfinished in {:.2f}s\n".format(time.time() - ta)
+    print("\nfinished in {:.2f}s\n".format(time.time() - ta))
     return isfr
 
 def intersect_brute_force(geom1, geom2):
@@ -173,13 +216,13 @@ def intersect_brute_force(geom1, geom2):
 
     isfr = []
     ngeom1 = len(geom1)
-    print 'Intersecting {} features...'.format(len(geom2))
+    print('Intersecting {} features...'.format(len(geom2)))
     for i, g in enumerate(geom2):
-        print '\r{}'.format(i),
+        print('\r{}'.format(i), end=' ')
         intersects = np.array([r.intersects(g) for r in geom1])
         inds = list(np.arange(ngeom1)[intersects])
         isfr.append(inds)
-    print ''
+    print('')
     return isfr
 
 
@@ -194,7 +237,7 @@ def dissolve(inshp, outshp, dissolve_attribute):
 
 def dissolve_df(in_df, dissolve_attribute):
     
-    print "dissolving DataFrame on {}".format(dissolve_attribute)
+    print("dissolving DataFrame on {}".format(dissolve_attribute))
     # unique attributes on which to make the dissolve
     dissolved_items = list(np.unique(in_df[dissolve_attribute]))
     
@@ -209,7 +252,7 @@ def dissolve_df(in_df, dissolve_attribute):
         dict = {dissolve_attribute: item, 'geometry': dissolved}
         df_out = df_out.append(dict, ignore_index=True)
         knt +=1
-        print '\r{:d}%'.format(100*knt/length)
+        print('\r{:d}%'.format(100*knt/length))
         
     return df_out
 
@@ -229,7 +272,7 @@ def join_csv2shp(shapefile, shp_joinfield, csvfile, csv_joinfield, out_shapefile
 
     csvdf = pd.read_csv(csvfile, index_col=csv_joinfield)
 
-    print 'joining to {}...'.format(csvfile)
+    print('joining to {}...'.format(csvfile))
     joined = shpdf.join(csvdf, how='inner', lsuffix='L', rsuffix='R')
 
     # write to shapefile
@@ -244,5 +287,5 @@ def rotate_coords(coords, rot, origin):
     ur = LineString(unrotated)
     r = affinity.rotate(ur, rot, origin=ur[0])
 
-    return zip(r.coords.xy[0], r.coords.xy[1])
+    return list(zip(r.coords.xy[0], r.coords.xy[1]))
 

@@ -20,8 +20,8 @@ def getPRJwkt(epsg):
 
    This makes use of links like http://spatialreference.org/ref/epsg/4326/prettywkt/
    """
-   import urllib
-   f=urllib.urlopen("http://spatialreference.org/ref/epsg/{0}/prettywkt/".format(epsg))
+   import urllib.request, urllib.parse, urllib.error
+   f=urllib.request.urlopen("http://spatialreference.org/ref/epsg/{0}/prettywkt/".format(epsg))
    return (f.read())
 
 def get_df_bounds(indf):
@@ -109,12 +109,12 @@ def shp2df(shplist, index=None, clipto=[], true_values=None, false_values=None, 
 
     df = pd.DataFrame()
     for shp in shplist:
-        print "\nreading {}...".format(shp)
+        print("\nreading {}...".format(shp))
         shp_obj = fiona.open(shp, 'r')
 
         if index is not None:
             # handle capitolization issues with index field name
-            fields = shp_obj.schema['properties'].keys()
+            fields = list(shp_obj.schema['properties'].keys())
             index = [f for f in fields if index.lower() == f.lower()][0]
 
         attributes = []
@@ -129,7 +129,7 @@ def shp2df(shplist, index=None, clipto=[], true_values=None, false_values=None, 
                         continue
                 props['geometry'] = line.get('geometry', None)
                 attributes.append(props)
-            print '--> building dataframe... (may take a while for large shapefiles)'
+            print('--> building dataframe... (may take a while for large shapefiles)')
             shp_df = pd.DataFrame(attributes)
 
             # handle null geometries
@@ -154,7 +154,7 @@ def shp2df(shplist, index=None, clipto=[], true_values=None, false_values=None, 
                     if not props[index] in clipto_index:
                         continue
                 attributes.append(props)
-            print '--> building dataframe... (may take a while for large shapefiles)'
+            print('--> building dataframe... (may take a while for large shapefiles)')
             shp_df = pd.DataFrame(attributes)
 
         shp_obj.close()
@@ -203,7 +203,7 @@ def shp_properties2(df):
     #dtypes = [d.name for d in list(df.dtypes)]
     # also exchange any 'object' dtype for 'str'
     dtypes = [d.replace('object', 'str') for d in dtypes]
-    properties = dict(zip(df.columns, dtypes))
+    properties = dict(list(zip(df.columns, dtypes)))
     return properties
 
 def shp_properties(df):
@@ -223,7 +223,7 @@ def shp_properties(df):
     # strip dtypes to just 'float', 'int' or 'str'
     dtypes = [''.join([c for c in d.name if not c.isdigit()]) for d in list(df.dtypes)]
     dtypes = [d.replace('object', 'str') for d in dtypes]
-    properties = dict(zip(df.columns, dtypes))
+    properties = dict(list(zip(df.columns, dtypes)))
     return properties
 
 
@@ -260,7 +260,7 @@ def shpfromdf(df, shpname, Xname, Yname, prj):
             X = df.iloc[i][Xname]
             Y = df.iloc[i][Yname]
             point = Point(X, Y)
-            props = dict(zip(df.columns, df.iloc[i]))
+            props = dict(list(zip(df.columns, df.iloc[i])))
             output.write({'properties': props,
                           'geometry': mapping(point)})
     shutil.copyfile(prj, "{}.prj".format(shpname[:-4]))
@@ -292,7 +292,7 @@ def pointsdf2shp(dataframe, shpname, X='X', Y='Y', index=False,  prj=None, epsg=
     follows the same logic as xlsx2points above but no need for Excel file --> assumes point data already
     in the dataframe. Note that prj, epsg, etc. get passed along using the same logic as df2shp
     '''
-    if 'geometry' not in [k.lower() for k in dataframe.keys()]:
+    if 'geometry' not in [k.lower() for k in list(dataframe.keys())]:
         dataframe['geometry'] = [Point(p) for p in zip(dataframe[X],dataframe[Y])]
     df2shp(dataframe, shpname, 'geometry', index, prj, epsg, proj4, crs)
 
@@ -329,7 +329,7 @@ def df2shp(dataframe, shpname, geo_column='geometry', index=False, prj=None, eps
 
     # enforce character limit for names! (otherwise fiona marks it zero)
     # somewhat kludgey, but should work for duplicates up to 99
-    df.columns = map(str, df.columns) # convert columns to strings in case some are ints
+    df.columns = list(map(str, df.columns)) # convert columns to strings in case some are ints
     overtheline = [(i, '{}{}'.format(c[:8],i)) for i, c in enumerate(df.columns) if len(c) > 10]
 
     newcolumns = list(df.columns)
@@ -368,7 +368,7 @@ def df2shp(dataframe, shpname, geo_column='geometry', index=False, prj=None, eps
 
     props = df.drop('geometry', axis=1).to_dict(orient='records')
     mapped = [mapping(g) for g in df.geometry]
-    print 'writing {}...'.format(shpname)
+    print('writing {}...'.format(shpname))
     with fiona.collection(shpname, "w", driver="ESRI Shapefile", crs=crs, schema=schema) as output:
         for i in range(length):
             output.write({'properties': props[i],
@@ -384,10 +384,10 @@ def df2shp(dataframe, shpname, geo_column='geometry', index=False, prj=None, eps
             ofp.close()
         """
         try:
-            print 'copying {} --> {}...'.format(prj, "{}.prj".format(shpname[:-4]))
+            print('copying {} --> {}...'.format(prj, "{}.prj".format(shpname[:-4])))
             shutil.copyfile(prj, "{}.prj".format(shpname[:-4]))
         except IOError:
-            print 'Warning: could not find specified prj file. shp will not be projected.'
+            print('Warning: could not find specified prj file. shp will not be projected.')
 
 
 
@@ -406,7 +406,7 @@ def linestring_shpfromdf(df, shpname, IDname, Xname, Yname, Zname, prj, aggregat
     # if including other properties besides line identifier,
     # aggregate those to single value for line, using supplied aggregate dictionary
     if aggregate:
-        cols = [IDname] + aggregate.keys()
+        cols = [IDname] + list(aggregate.keys())
         aggregated = df[cols].groupby(IDname).agg(aggregate)
         aggregated[IDname] = aggregated.index
         properties = shp_properties(aggregated)
@@ -424,7 +424,7 @@ def linestring_shpfromdf(df, shpname, IDname, Xname, Yname, Zname, prj, aggregat
             lineinfo = df[df[IDname] == line]
             vertices = lineinfo[[Xname, Yname, Zname]].values
             linestring = asLineString(vertices)
-            props = dict(zip(aggregated.columns, aggregated.ix[line, :]))
+            props = dict(list(zip(aggregated.columns, aggregated.ix[line, :])))
             output.write({'properties': props,
                           'geometry': mapping(linestring)})
     shutil.copyfile(prj, "{}.prj".format(shpname[:-4]))
@@ -442,7 +442,7 @@ def read_raster(rasterfile):
     except:
         raise IOError("problem reading raster file {}".format(rasterfile))
 
-    print '\nreading in {} into numpy array...'.format(rasterfile)
+    print('\nreading in {} into numpy array...'.format(rasterfile))
     data = ds.ReadAsArray()
     gt = ds.GetGeoTransform()
     proj = ds.GetProjection()
@@ -459,7 +459,7 @@ def read_raster(rasterfile):
     
     del ds
 
-    print 'creating a grid of xy coordinates in the original projection...'
+    print('creating a grid of xy coordinates in the original projection...')
     xy = np.mgrid[xmin:xmax+xres:xres, ymax+yres:ymin:yres]
     
     # create a mask for no-data values
