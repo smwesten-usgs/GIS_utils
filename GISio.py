@@ -3,7 +3,6 @@ import warnings
 warnings.filterwarnings('ignore', category=UserWarning)
 
 import numpy as np
-import gdal
 import fiona
 from shapely.geometry import Point, shape, asLineString, mapping
 from shapely.wkt import loads
@@ -428,7 +427,38 @@ def linestring_shpfromdf(df, shpname, IDname, Xname, Yname, Zname, prj, aggregat
             output.write({'properties': props,
                           'geometry': mapping(linestring)})
     shutil.copyfile(prj, "{}.prj".format(shpname[:-4]))
-    
+
+def get_values_at_points(rasterfile, points):
+    """Get raster values single point or list of points.
+    Points must be in same coordinate system as raster.
+
+    Parameters
+    ----------
+    rasterfile : str
+        Filename of raster.
+    pos : tuple or list of tuples
+        Points at which to sample raster.
+
+    Returns
+    -------
+    list of floats
+
+    Notes
+    -----
+    requires gdal
+    """
+    try:
+        import gdal
+    except:
+        print('This function requires gdal.')
+    if isinstance(points, tuple):
+        points = [points]
+    gdata = gdal.Open(rasterfile)
+    gt = gdata.GetGeoTransform()
+    data = gdata.ReadAsArray().astype(np.float)
+
+    return [data[int((p[1] - gt[3])/gt[5]), int((p[0] - gt[0])/gt[1])]
+            for p in points]
     
 def read_raster(rasterfile):
     '''
@@ -437,6 +467,10 @@ def read_raster(rasterfile):
     based on code stolen from:
     http://stackoverflow.com/questions/20488765/plot-gdal-raster-using-matplotlib-basemap 
     '''
+    try:
+        import gdal
+    except:
+        print('This function requires gdal.')
     try:
         ds = gdal.Open(rasterfile)
     except:
@@ -466,7 +500,7 @@ def read_raster(rasterfile):
     data[data<-1.0e+20] = 0
     
     return data, gt, proj, xy
-    
+
 def flatten_3Dshp(shp, outshape=None):
 	
 	if not outshape:
