@@ -1,4 +1,6 @@
 # suppress annoying pandas openpyxl warning
+from __future__ import print_function
+
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning)
 
@@ -188,7 +190,7 @@ def intersect_rtree(geom1, geom2):
     print('\nIntersecting {} features...'.format(len(geom2)))
     ta = time.time()
     for pind, poly in enumerate(geom2):
-        print('\r{}'.format(pind + 1))
+        print('\r{}'.format(pind + 1), end='')
         # test for intersection with bounding box of each polygon feature in geom2 using spatial index
         inds = [i for i in idx.intersection(poly.bounds)]
         # test each feature inside the bounding box for intersection with the polygon geometry
@@ -218,7 +220,7 @@ def intersect_brute_force(geom1, geom2):
     ngeom1 = len(geom1)
     print('Intersecting {} features...'.format(len(geom2)))
     for i, g in enumerate(geom2):
-        print('\r{}'.format(i), end=' ')
+        print('\r{}'.format(i+1), end='')
         intersects = np.array([r.intersects(g) for r in geom1])
         inds = list(np.arange(ngeom1)[intersects])
         isfr.append(inds)
