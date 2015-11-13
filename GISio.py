@@ -150,7 +150,7 @@ def shp2df(shplist, index=None, clipto=[], true_values=None, false_values=None, 
                 props = line['properties']
                 # limit what is brought in to items in index of clipto
                 if clip:
-                    if not props[index] in clipto_index:
+                    if not props[index] in clipto:
                         continue
                 attributes.append(props)
             print('--> building dataframe... (may take a while for large shapefiles)')
