@@ -157,6 +157,8 @@ def shp2df(shplist, index=None, clipto=[], true_values=None, false_values=None, 
             shp_df = pd.DataFrame(attributes)
 
         shp_obj.close()
+        if len(shp_df) == 0:
+            continue
         # set the dataframe index from the index column
         if index is not None:
             shp_df.index = shp_df[index].values
