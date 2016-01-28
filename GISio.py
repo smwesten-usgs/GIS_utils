@@ -72,7 +72,8 @@ def get_proj4(prj):
     proj4 = srs.ExportToProj4()
     return proj4
 
-def shp2df(shplist, index=None, clipto=[], true_values=None, false_values=None, \
+def shp2df(shplist, index=None, index_dtype=None, clipto=[], filter=None,
+           true_values=None, false_values=None,
            skip_empty_geom=True):
     """Read shapefile into pandas DataFrame.
 
@@ -82,8 +83,13 @@ def shp2df(shplist, index=None, clipto=[], true_values=None, false_values=None, 
         of shapefile name(s)
     index : string
         Column to use as index for dataframe
+    index_dtype : dtype
+        Enforces a datatype for the index column (for example, if the index field is supposed to be integer
+        but pandas reads it as strings, converts to integer)
     clipto : list
         limit what is brought in to items in index of clipto (requires index)
+    filter : tuple (xmin, ymin, xmax, ymax)
+        bounding box to filter which records are read from the shapefile.
     true_values : list
         same as argument for pandas read_csv
     false_values : list
@@ -119,7 +125,7 @@ def shp2df(shplist, index=None, clipto=[], true_values=None, false_values=None, 
         attributes = []
         # for reading in shapefiles
         if shp_obj.schema['geometry'] != 'None':
-            for line in shp_obj:
+            for line in shp_obj.filter(bbox=filter):
 
                 props = line['properties']
                 # limit what is brought in to items in index of clipto
@@ -161,6 +167,8 @@ def shp2df(shplist, index=None, clipto=[], true_values=None, false_values=None, 
             continue
         # set the dataframe index from the index column
         if index is not None:
+            if index_dtype is not None:
+                shp_df[index] = shp_df[index].astype(index_dtype)
             shp_df.index = shp_df[index].values
 
         df = df.append(shp_df)
@@ -438,7 +446,7 @@ def get_values_at_points(rasterfile, points):
     ----------
     rasterfile : str
         Filename of raster.
-    pos : tuple or list of tuples
+    points : tuple or list of tuples
         Points at which to sample raster.
 
     Returns
