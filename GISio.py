@@ -192,10 +192,11 @@ def shp2df(shplist, index=None, index_dtype=None, clipto=[], filter=None,
 def shp_properties(df):
 
     newdtypes = {'bool': 'str',
-                 'object': 'str'}
+                 'object': 'str',
+                 'datetime64[ns]': 'str'}
 
     # fiona/OGR doesn't like numpy ints
-    # shapefile doesn'nt support 64 bit ints,
+    # shapefile doesn't support 64 bit ints,
     # but apparently leaving the ints alone is more reliable
     # than intentionally downcasting them to 32 bit
     # pandas is smart enough to figure it out on .to_dict()?
@@ -314,7 +315,7 @@ def df2shp(dataframe, shpname, geo_column='geometry', index=False, prj=None, eps
 
     # reset the index to integer index to enforce ordering
     # retain index as attribute field if index=True
-    df.reset_index(inplace=True, drop=~index)
+    df.reset_index(inplace=True, drop=not index)
 
     # enforce character limit for names! (otherwise fiona marks it zero)
     # somewhat kludgey, but should work for duplicates up to 99
@@ -354,7 +355,7 @@ def df2shp(dataframe, shpname, geo_column='geometry', index=False, prj=None, eps
     schema = {'geometry': Type, 'properties': properties}
     length = len(df)
 
-    props = df.drop('geometry', axis=1).to_dict(orient='records')
+    props = df.drop('geometry', axis=1).astype(object).to_dict(orient='records')
     print('writing {}...'.format(shpname))
     with fiona.collection(shpname, "w", driver="ESRI Shapefile", crs=crs, schema=schema) as output:
         for i in range(length):
