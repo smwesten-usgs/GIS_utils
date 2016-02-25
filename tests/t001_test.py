@@ -16,10 +16,12 @@ def test_shp_read_and_write():
 
     # test without geometry
     df = pd.DataFrame({'reach': np.arange(10000001, 10000100, dtype=int), 'value': np.arange(1, 100, dtype=float),
-                       'name': ['stuff{}'.format(i) for i in np.arange(1, 100)]})
+                       'name': ['stuff{}'.format(i) for i in np.arange(1, 100)],
+                       'isTrue': [True, False] * 49 + [True]})
     df2shp(df, 'temp/junk.dbf')
-    df = shp2df('temp/junk.dbf')
-    assert [d.name for d in df.dtypes] == ['object', 'int64', 'float64']
+    df = shp2df('temp/junk.dbf', true_values='True', false_values='False')
+    assert [d.name for d in df.dtypes] == ['bool', 'object', 'int64', 'float64']
+    assert df.isTrue.sum() == 50
 
     # test with geometry
     df = pd.DataFrame({'reach': np.arange(1, 101, dtype=int), 'value': np.arange(100, dtype=float),

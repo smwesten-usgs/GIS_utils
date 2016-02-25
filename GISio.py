@@ -106,7 +106,10 @@ def shp2df(shplist, index=None, index_dtype=None, clipto=[], filter=None,
     """
     if isinstance(shplist, str):
         shplist = [shplist]
-
+    if not isinstance(true_values, list):
+        true_values = [true_values]
+    if not isinstance(false_values, list):
+        false_values = [false_values]
     if len(clipto) > 0 and index:
         clip = True
     else:
@@ -125,15 +128,20 @@ def shp2df(shplist, index=None, index_dtype=None, clipto=[], filter=None,
         attributes = []
         # for reading in shapefiles
         if shp_obj.schema['geometry'] != 'None':
-            for line in shp_obj.filter(bbox=filter):
 
-                props = line['properties']
-                # limit what is brought in to items in index of clipto
-                if clip:
+            if clip: # limit what is brought in to items in index of clipto
+                for line in shp_obj.filter(bbox=filter):
+                    props = line['properties']
                     if not props[index] in clipto:
                         continue
-                props['geometry'] = line.get('geometry', None)
-                attributes.append(props)
+                    props['geometry'] = line.get('geometry', None)
+                    attributes.append(props)
+            else:
+                for line in shp_obj.filter(bbox=filter):
+
+                    props = line['properties']
+                    props['geometry'] = line.get('geometry', None)
+                    attributes.append(props)
             print('--> building dataframe... (may take a while for large shapefiles)')
             shp_df = pd.DataFrame(attributes)
 
@@ -151,14 +159,16 @@ def shp2df(shplist, index=None, index_dtype=None, clipto=[], filter=None,
 
         # for reading in DBF files (just like shps, but without geometry)
         else:
-            for line in shp_obj:
-
-                props = line['properties']
-                # limit what is brought in to items in index of clipto
-                if clip:
+            if clip: # limit what is brought in to items in index of clipto
+                for line in shp_obj:
+                    props = line['properties']
                     if not props[index] in clipto:
                         continue
-                attributes.append(props)
+                    attributes.append(props)
+            else:
+                for line in shp_obj:
+                    props = line['properties']
+                    attributes.append(props)
             print('--> building dataframe... (may take a while for large shapefiles)')
             shp_df = pd.DataFrame(attributes)
 
@@ -181,10 +191,11 @@ def shp2df(shplist, index=None, index_dtype=None, clipto=[], filter=None,
             for f in false_values:
                 replace_boolean[f] = False
 
-            # only remap columns that have values to be replaced
-            for c in df.columns:
-                if len(set(df[c]).intersection(set(true_values))) > 0:
-                    df[c] = df[c].map(replace_boolean)
+        # only remap columns that have values to be replaced
+        cols = [c for c in df.columns if c != 'geometry']
+        for c in cols:
+            if len(set(replace_boolean.keys()).intersection(set(df[c]))) > 0:
+                df[c] = df[c].map(replace_boolean)
         
     return df
 
