@@ -14,6 +14,9 @@ def test_shp_properties():
 
 def test_shp_read_and_write():
 
+    if not os.path.isdir('output'):
+        os.makedirs('output')
+
     # test without geometry
     df = pd.DataFrame({'reach': np.arange(10000001, 10000100, dtype=int), 'value': np.arange(1, 100, dtype=float),
                        'name': ['stuff{}'.format(i) for i in np.arange(1, 100)]})
