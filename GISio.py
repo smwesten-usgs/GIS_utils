@@ -106,9 +106,9 @@ def shp2df(shplist, index=None, index_dtype=None, clipto=[], filter=None,
     """
     if isinstance(shplist, str):
         shplist = [shplist]
-    if not isinstance(true_values, list):
+    if not isinstance(true_values, list) and true_values is not None:
         true_values = [true_values]
-    if not isinstance(false_values, list):
+    if not isinstance(false_values, list)  and false_values is not None:
         false_values = [false_values]
     if len(clipto) > 0 and index:
         clip = True
@@ -167,8 +167,7 @@ def shp2df(shplist, index=None, index_dtype=None, clipto=[], filter=None,
                     attributes.append(props)
             else:
                 for line in shp_obj:
-                    props = line['properties']
-                    attributes.append(props)
+                    attributes.append(line['properties'])
             print('--> building dataframe... (may take a while for large shapefiles)')
             shp_df = pd.DataFrame(attributes)
 
@@ -184,18 +183,18 @@ def shp2df(shplist, index=None, index_dtype=None, clipto=[], filter=None,
         df = df.append(shp_df)
 
         # convert any t/f columns to numpy boolean data
-        if true_values or false_values:
+        if true_values is not None or false_values is not None:
             replace_boolean = {}
             for t in true_values:
                 replace_boolean[t] = True
             for f in false_values:
                 replace_boolean[f] = False
 
-        # only remap columns that have values to be replaced
-        cols = [c for c in df.columns if c != 'geometry']
-        for c in cols:
-            if len(set(replace_boolean.keys()).intersection(set(df[c]))) > 0:
-                df[c] = df[c].map(replace_boolean)
+            # only remap columns that have values to be replaced
+            cols = [c for c in df.columns if c != 'geometry']
+            for c in cols:
+                if len(set(replace_boolean.keys()).intersection(set(df[c]))) > 0:
+                    df[c] = df[c].map(replace_boolean)
         
     return df
 
