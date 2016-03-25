@@ -2,10 +2,11 @@
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning)
 import os
+import re
 import numpy as np
-import fiona
 from shapely.geometry import Point, shape, asLineString, mapping
 from shapely.wkt import loads
+import fiona
 import pandas as pd
 import shutil
 import numpy as np
@@ -201,9 +202,11 @@ def shp2df(shplist, index=None, index_dtype=None, clipto=[], filter=None,
 
 def shp_properties(df):
 
-    newdtypes = {'bool': 'str',
-                 'object': 'str',
-                 'datetime64[ns]': 'str'}
+    dtypes = []
+
+    newdtypes = {'bool'           : 'str',
+                 'object'         : 'str',
+                 'datetime64[ns]' : 'str' }
 
     # fiona/OGR doesn't like numpy ints
     # shapefile doesn't support 64 bit ints,
@@ -214,14 +217,9 @@ def shp_properties(df):
         if c != 'geometry':
             df[c] = df[c].astype(newdtypes.get(df.dtypes[c].name,
                                                df.dtypes[c].name))
+    for c in df.columns:
+        dtypes.append( re.sub('[0-9]','',str(df[c].dtypes.name)) )
 
-    # strip dtypes to just 'float', 'int' or 'str'
-    def stripandreplace(s):
-        return ''.join([i for i in s
-                        if not i.isdigit()]).replace('object', 'str')
-    dtypes = [stripandreplace(df[c].dtype.name)
-              if c != 'geometry'
-              else df[c].dtype.name for c in df.columns]
     properties = dict(list(zip(df.columns, dtypes)))
     return properties
 
