@@ -218,7 +218,7 @@ def shp_properties(df):
             df[c] = df[c].astype(newdtypes.get(df.dtypes[c].name,
                                                df.dtypes[c].name))
     for c in df.columns:
-        dtypes.append( re.sub('[0-9]','',str(df[c].dtypes.name)) )
+        dtypes.append( re.sub('[0-9]','',str(df[c].dtypes.name)).replace('object', 'str') )
 
     properties = dict(list(zip(df.columns, dtypes)))
     return properties
